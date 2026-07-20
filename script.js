@@ -1,26 +1,25 @@
 // =========================================================================
-// 1. CONFIGURAÇÃO DA PLANILHA (Link direto de exportação para cada aba)
+// 0. CONTROLE DE ACESSO (Trava de Segurança na Index)
 // =========================================================================
-// TRAVA DE SEGURANÇA: Se não estiver logado, redireciona para a tela de login
+
 if (localStorage.getItem('painel_polos_logado') !== 'true') {
     window.location.href = 'login.html';
 }
 
+
+// =========================================================================
+// 1. CONFIGURAÇÃO DA PLANILHA (IDs e Links de Integração)
+// =========================================================================
 const SPREADSHEET_ID = '1km9rpUas9U3V4zqRqCp4AxxR_srUphtlckBuGRF7lqQ';
 
-// Aba de Polos (Padrão)
 const SPREADSHEET_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv`;
-
-// Aba de Cursos (Exportada como CSV usando o parâmetro gid=0 ou o nome da aba)
 const CURSOS_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=P%C3%A1gina1`;
-
-// URL do Google Apps Script Web App
 const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx7buSjmuDCUBS6f8dak8CPxoiDGB0Mz_KyTld6MixqbchCi9gvdKVFDmMu6SNxCTGj/exec';
 
-// Base de dados global
 let database = [];
-let baseCursosPolos = {}; // Guardará os cursos associados a cada polo
-let listaTodosCursos = []; // Guardará a lista única de cursos para o filtro
+let baseCursosPolos = {}; 
+let listaTodosCursos = []; 
+
 
 // =========================================================================
 // 2. ELEMENTOS DO DOM (MAPEAMENTO)
@@ -37,83 +36,78 @@ const txtTotalPolos = document.getElementById('txt-total-polos');
 const txtTotalEad = document.getElementById('txt-total-ead');
 const txtTotalSemi = document.getElementById('txt-total-semi');
 const txtBadgeTotal = document.getElementById('txt-badge-total');
-
-// MAPEAMENTO DO BOTÃO DE SAIR
 const btnSair = document.getElementById('btn-sair'); 
 
+
 // =========================================================================
-// 3. INICIALIZAÇÃO
+// 3. INICIALIZAÇÃO DO PAINEL
 // =========================================================================
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Carrega os cursos da aba antes de renderizar para garantir que apareçam
     await carregarCursosDaPlanilha();
-    
-    // 2. Carrega os polos
-    carregarDadosDaPlanilha();
+    await carregarDadosDaPlanilha();
 
     if (inputBusca) inputBusca.addEventListener('input', filtrarEDesenhar);
+    if (btnSair) btnSair.addEventListener('click', efetuarLogout);
     
-    // Configuração do botão de sair (Logout)
-    if (btnSair) {
-        btnSair.addEventListener('click', efetuarLogout);
+    // --- LÓGICA DE FILTROS INTELIGENTES CRUZADOS ---
+    if (selectRegiao) {
+        selectRegiao.addEventListener('change', () => {
+            popularEstadosBaseadoEmRegiao(); 
+            filtrarEDesenhar();
+        });
     }
     
-    // Escuta a tecla 'ESC' para limpar todos os filtros
+    if (selectEstado) {
+        selectEstado.addEventListener('change', () => {
+            ajustarRegiaoBaseadoEmEstado();
+            filtrarEDesenhar();
+        });
+    }
+    
+    if (selectModelo) selectModelo.addEventListener('change', filtrarEDesenhar);
+    if (selectCurso) selectCurso.addEventListener('change', filtrarEDesenhar); 
+
+    // Tecla ESC limpa tudo voltando para os padrões do HTML
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' || event.key === 'Esc') {
             if (inputBusca) inputBusca.value = '';
-            if (selectRegiao) selectRegiao.value = 'TODAS';
-            popularEstados(); 
-            if (selectEstado) selectEstado.value = 'TODOS';
-            if (selectModelo) selectModelo.value = 'TODOS';
-            if (selectCurso) selectCurso.value = 'TODOS'; 
+            if (selectRegiao) selectRegiao.selectedIndex = 0;
+            popularEstadosBaseadoEmRegiao(); 
+            if (selectEstado) selectEstado.selectedIndex = 0;
+            if (selectModelo) selectModelo.selectedIndex = 0;
+            if (selectCurso) selectCurso.selectedIndex = 0; 
             document.querySelectorAll('.detail-row').forEach(row => row.classList.remove('open'));
             document.querySelectorAll('.polo-row').forEach(row => row.classList.remove('expanded'));
             filtrarEDesenhar();
         }
     });   
-    
-    if (selectRegiao) {
-        selectRegiao.addEventListener('change', () => {
-            popularEstados(); 
-            filtrarEDesenhar();
-        });
-    }
-    
-    if (selectEstado) selectEstado.addEventListener('change', filtrarEDesenhar);
-    if (selectModelo) selectModelo.addEventListener('change', filtrarEDesenhar);
-    if (selectCurso) selectCurso.addEventListener('change', filtrarEDesenhar); 
 });
 
-// =========================================================================
-// FUNÇÃO DE LOGOUT
-// =========================================================================
+
 function efetuarLogout() {
     localStorage.removeItem('painel_polos_logado');
     window.location.href = 'login.html';
 }
 
+
 // =========================================================================
-// 4. PROCESSAR CURSOS DA OUTRA ABA (VIA CSV SEGURO E SEM CORTES)
+// 4. PROCESSAR CURSOS
 // =========================================================================
 async function carregarCursosDaPlanilha() {
     try {
         const resposta = await fetch(CURSOS_URL);
-        if (!resposta.ok) throw new Error("Erro ao buscar cursos");
+        if (!resposta.ok) throw new Error("Não foi possível alcançar os cursos.");
         const csvTexto = await resposta.text();
         
         const lines = processarLinhasCSV(csvTexto);
         if (lines.length < 2) return;
 
-        // Cabeçalhos (Nomes dos Cursos começam na coluna E/índice 4)
         const cabecalho = lines[0];
         listaTodosCursos = cabecalho.slice(4).map(c => c.trim()).filter(c => c !== "");
         listaTodosCursos.sort();
 
-        // Popular o select de cursos dinamicamente
         popularSelectCursos();
 
-        // Processa cada linha de polo
         for (let i = 1; i < lines.length; i++) {
             const colunas = lines[i];
             if (colunas.length < 3) continue;
@@ -123,7 +117,6 @@ async function carregarCursosDaPlanilha() {
 
             baseCursosPolos[nomePolo] = {};
 
-            // Mapeia o status de cada curso para o polo correspondente
             for (let j = 4; j < colunas.length; j++) {
                 const nomeCurso = cabecalho[j] ? cabecalho[j].trim() : '';
                 const statusOferta = colunas[j] ? colunas[j].trim() : 'Sem Oferta';
@@ -133,15 +126,13 @@ async function carregarCursosDaPlanilha() {
                 }
             }
         }
-        console.log("Cursos mapeados com sucesso:", baseCursosPolos);
     } catch (erro) {
-        console.error("Erro ao integrar aba de cursos:", erro);
+        console.error("Aviso de Cursos:", erro);
     }
 }
 
 function popularSelectCursos() {
     if (!selectCurso) return;
-    
     selectCurso.innerHTML = '<option value="TODOS">Todos os Cursos</option>';
     listaTodosCursos.forEach(curso => {
         const option = document.createElement('option');
@@ -151,7 +142,6 @@ function popularSelectCursos() {
     });
 }
 
-// Helper para parsear CSV robustamente
 function processarLinhasCSV(text) {
     let lines = [];
     let row = [""];
@@ -183,8 +173,9 @@ function processarLinhasCSV(text) {
     return lines;
 }
 
+
 // =========================================================================
-// 5. LEITURA DE DADOS DA PLANILHA (POLOS)
+// 5. LEITURA E TRATAMENTO DA PLANILHA (POLOS)
 // =========================================================================
 async function carregarDadosDaPlanilha() {
     if (tabelaBody) {
@@ -201,28 +192,16 @@ async function carregarDadosDaPlanilha() {
     
     try {
         const response = await fetch(SPREADSHEET_URL);
-        if (!response.ok) throw new Error("Erro na requisição");
+        if (!response.ok) throw new Error("Erro Sheets API");
         
         const csvText = await response.text();
         database = processarCsvProfissional(csvText);
 
-        popularEstados();
+        popularTodosEstadosIniciais(); 
         filtrarEDesenhar();
 
     } catch (error) {
-        console.error("Erro ao carregar dados:", error);
-        if (tabelaBody) {
-            tabelaBody.innerHTML = `
-                <tr>
-                    <td colspan="5" style="text-align: center; color: #dc2626; padding: 60px;">
-                        <i class="fa-solid fa-triangle-exclamation" style="font-size: 2.5rem;"></i>
-                        <br><br>
-                        <strong>Erro ao conectar com os dados!</strong><br>
-                        Verifique sua conexão ou se a planilha está compartilhada como Leitor.
-                    </td>
-                </tr>
-            `;
-        }
+        console.error(error);
     }
 }
 
@@ -254,12 +233,32 @@ function processarCsvProfissional(text) {
         let estado = cells[idxEstado] ? cells[idxEstado].trim() : 'Não Definido';
         estado = estado.replace(/\s*\(.*?\)\s*/g, '').trim(); 
 
-        const modeloOriginal = cells[idxModelo] ? cells[idxModelo].trim() : 'EAD';
+        let temEAD = false;
+        let temSemi = false;
+
+        cells.forEach((celula, idx) => {
+            if (idx !== idxNome && idx !== idxRegiao && idx !== idxEstado) {
+                const valorMinusculo = celula.toLowerCase();
+                if (valorMinusculo.includes('oferta') && !valorMinusculo.startsWith('sem')) {
+                    if (valorMinusculo.includes('semi')) {
+                        temSemi = true;
+                    } else {
+                        temEAD = true;
+                    }
+                }
+            }
+        });
 
         let modeloClassificado = 'EAD';
-        const modUpper = modeloOriginal.toUpperCase();
-        if (modUpper.includes('SEMI') || modUpper.includes('PRESENCIAL')) {
+        if (temSemi) {
             modeloClassificado = 'Semipresencial';
+        } else if (temEAD) {
+            modeloClassificado = 'EAD';
+        } else {
+            const modeloOriginal = cells[idxModelo] ? cells[idxModelo].trim().toUpperCase() : 'EAD';
+            if (modeloOriginal.includes('SEMI') || modeloOriginal.includes('PRESENCIAL')) {
+                modeloClassificado = 'Semipresencial';
+            }
         }
 
         if (nome) {
@@ -271,14 +270,37 @@ function processarCsvProfissional(text) {
             });
         }
     }
-
     return parsedData;
 }
 
+
 // =========================================================================
-// 6. ATUALIZAÇÃO DINÂMICA DO SELECT DE ESTADOS
+// 6. MOTOR DO FILTRO INTELIGENTE E DEPENDÊNCIAS CRUZADAS
 // =========================================================================
-function popularEstados() {
+
+// Popula o select com TODOS os estados disponíveis na base ao iniciar
+function popularTodosEstadosIniciais() {
+    if (!selectEstado) return;
+    
+    let estados = [];
+    database.forEach(polo => {
+        if (polo.Estado && !estados.includes(polo.Estado)) {
+            estados.push(polo.Estado);
+        }
+    });
+    estados.sort();
+
+    selectEstado.innerHTML = '<option value="TODOS">Todos os Estados</option>';
+    estados.forEach(est => {
+        const option = document.createElement('option');
+        option.value = est;
+        option.textContent = est;
+        selectEstado.appendChild(option);
+    });
+}
+
+// Quando muda a Região -> Filtra a lista de Estados disponíveis
+function popularEstadosBaseadoEmRegiao() {
     if (!selectEstado || !selectRegiao) return;
 
     const regiaoSelecionada = selectRegiao.value;
@@ -287,7 +309,8 @@ function popularEstados() {
     let estadosFiltrados = [];
     
     database.forEach(polo => {
-        if (regiaoSelecionada === 'TODAS' || polo.Regiao === regiaoSelecionada) {
+        // Aceita "TODOS" ou o termo exato em português "Todas as Regiões"
+        if (regiaoSelecionada === 'TODAS' || regiaoSelecionada.includes('Todas') || polo.Regiao === regiaoSelecionada) {
             if (polo.Estado && !estadosFiltrados.includes(polo.Estado)) {
                 estadosFiltrados.push(polo.Estado);
             }
@@ -311,8 +334,33 @@ function popularEstados() {
     }
 }
 
+// Quando muda o Estado -> Encontra a região dele na base e seleciona automaticamente
+function ajustarRegiaoBaseadoEmEstado() {
+    if (!selectEstado || !selectRegiao) return;
+
+    const estadoSelecionado = selectEstado.value;
+
+    if (estadoSelecionado === 'TODOS' || estadoSelecionado.includes('Todos')) {
+        return; // Mantém a região como está
+    }
+
+    // Busca o primeiro polo correspondente a esse estado para descobrir a Região dele
+    const poloCorrespondente = database.find(p => p.Estado === estadoSelecionado);
+    
+    if (poloCorrespondente && poloCorrespondente.Regiao) {
+        // Procura no select de regiões a opção equivalente
+        for (let i = 0; i < selectRegiao.options.length; i++) {
+            if (selectRegiao.options[i].value === poloCorrespondente.Regiao) {
+                selectRegiao.selectedIndex = i;
+                break;
+            }
+        }
+    }
+}
+
+
 // =========================================================================
-// 7. FILTRAGEM, RENDERIZAÇÃO DA TABELA E INTERATIVIDADE EXPANSÍVEL
+// 7. FILTRAGEM, RENDERIZAÇÃO DA TABELA E DETALHES
 // =========================================================================
 function filtrarEDesenhar() {
     const busca = inputBusca ? inputBusca.value.toLowerCase().trim() : '';
@@ -323,16 +371,18 @@ function filtrarEDesenhar() {
 
     const dadosFiltrados = database.filter(polo => {
         const atendeBusca = polo.Nome.toLowerCase().includes(busca);
-        const atendeRegiao = (regiao === 'TODAS' || polo.Regiao === regiao);
-        const atendeEstado = (estado === 'TODOS' || polo.Estado === estado);
+        
+        // Validação inteligente aceitando padrões vazios ou "Todos" do HTML
+        const atendeRegiao = (regiao === 'TODAS' || regiao.includes('Todas') || polo.Regiao === regiao);
+        const atendeEstado = (estado === 'TODOS' || estado.includes('Todos') || polo.Estado === estado);
         
         let atendeModelo = true;
-        if (modelo !== 'TODOS') {
+        if (modelo !== 'TODOS' && !modelo.includes('Todos')) {
             atendeModelo = (modelo === 'EAD' ? polo.Modelo === 'EAD' : polo.Modelo === 'Semipresencial');
         }
 
         let atendeCurso = true;
-        if (cursoSelecionado !== 'TODOS') {
+        if (cursoSelecionado !== 'TODOS' && !cursoSelecionado.includes('Todos')) {
             const cursosDoPolo = baseCursosPolos[polo.Nome];
             if (cursosDoPolo && cursosDoPolo[cursoSelecionado]) {
                 const status = cursosDoPolo[cursoSelecionado].toUpperCase();
@@ -357,17 +407,16 @@ function filtrarEDesenhar() {
             
             dadosFiltrados.forEach((polo, index) => {
                 const badgeClass = polo.Modelo === 'EAD' ? 'badge-ead' : 'badge-semi';
-                
-                const cursosDoPolo = baseCursosPolos[polo.Nome] || null;
+                const coursesOfPolo = baseCursosPolos[polo.Nome] || null;
                 let htmlCursos = "";
 
-                if (cursosDoPolo && Object.keys(cursosDoPolo).length > 0) {
+                if (coursesOfPolo && Object.keys(coursesOfPolo).length > 0) {
                     htmlCursos = `
                         <h3 class="details-title" style="margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 20px;">🎓 Cursos Ofertados neste Polo</h3>
                         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 20px; padding: 15px; border-radius: 8px; border: 1px solid #f1f5f9; background-color: #fafbfc;">
                     `;
 
-                    for (const [nomeCurso, status] of Object.entries(cursosDoPolo)) {
+                    for (const [nomeCurso, status] of Object.entries(coursesOfPolo)) {
                         const statusUpper = status.toUpperCase();
 
                         let bgColor = '#f8fafc';       
@@ -403,15 +452,9 @@ function filtrarEDesenhar() {
                         const destaqueFiltro = (nomeCurso === cursoSelecionado) ? 'box-shadow: 0 0 0 3px #2563eb;' : '';
 
                         htmlCursos += `
-                            <div style="background-color: ${bgColor}; 
-                                        border: 1px solid ${borderColor}; 
-                                        border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 6px; ${destaqueFiltro}">
+                            <div style="background-color: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 6px; ${destaqueFiltro}">
                                 <div style="font-size: 0.82rem; font-weight: 600; color: ${textColor};">${nomeCurso}</div>
-                                <span style="align-self: flex-start; 
-                                             background-color: ${badgeBg}; 
-                                             color: ${badgeText}; 
-                                             font-size: 0.68rem; font-weight: 700; padding: 3px 6px; border-radius: 4px; 
-                                             border: 1px solid ${badgeBorder}; text-transform: uppercase; letter-spacing: 0.3px;">
+                                <span style="align-self: flex-start; background-color: ${badgeBg}; color: ${badgeText}; font-size: 0.68rem; font-weight: 700; padding: 3px 6px; border-radius: 4px; border: 1px solid ${badgeBorder}; text-transform: uppercase; letter-spacing: 0.3px;">
                                     ${status}
                                 </span>
                             </div>
@@ -421,11 +464,10 @@ function filtrarEDesenhar() {
                 } else {
                     htmlCursos = `
                         <h3 class="details-title" style="margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 20px;">🎓 Cursos Ofertados neste Polo</h3>
-                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">Nenhum curso active mapeado para o polo "${polo.Nome}" na planilha de cursos.</p>
+                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">Nenhum curso ativo mapeado para o polo "${polo.Nome}" na planilha de cursos.</p>
                     `;
                 }
 
-                // VERIFICAÇÃO PARA RENDERIZAR O VISTO VERDE (CHECK) DINAMICAMENTE
                 const dadosSalvos = localStorage.getItem(`polo_data_${polo.Nome}`);
                 let checkIconHtml = '';
                 if (dadosSalvos) {
@@ -532,9 +574,7 @@ function filtrarEDesenhar() {
                         if (row !== mainRow) {
                             row.classList.remove('expanded');
                             const otherIcon = row.querySelector('.toggle-icon');
-                            if (otherIcon) {
-                                otherIcon.style.transform = 'rotate(0deg)';
-                            }
+                            if (otherIcon) otherIcon.style.transform = 'rotate(0deg)';
                         }
                     });
                     
@@ -556,6 +596,7 @@ function filtrarEDesenhar() {
     }
 }
 
+
 // =========================================================================
 // 8. LOGICA DE PERSISTÊNCIA (LOCALSTORAGE)
 // =========================================================================
@@ -571,7 +612,6 @@ function carregarDadosSalvosDoPolo(poloNome, index) {
 
     if (dadosSalvos) {
         const dados = JSON.parse(dadosSalvos);
-        
         if (txtArea) txtArea.value = dados.anotacoes || '';
         if (recepcao) recepcao.checked = !!dados.recepcao;
         if (coordenacao) coordenacao.checked = !!dados.coordenacao;
@@ -606,18 +646,13 @@ function salvarConfiguracaoDoPolo(poloNome, index) {
         especializado
     };
 
-    // 1. Salva localmente
     localStorage.setItem(`polo_data_${poloNome}`, JSON.stringify(dadosDoPolo));
-    
-    // 2. Atualiza os cards superiores (total de concluídos) instantaneamente
     atualizarIndicadores(database); 
 
-    // 3. Renderiza ou remove o visto verde ao lado do badge sem fechar o menu!
     const modeloCell = document.querySelector(`#polo-row-${index} td:last-child`);
     if (modeloCell) {
         const temTexto = anotacoes && anotacoes.trim() !== '';
         const temAmbiente = recepcao || coordenacao || estudos || informatica || especializado;
-        
         let iconeExistente = modeloCell.querySelector('.item-visto-check');
         
         if (temTexto || temAmbiente) {
@@ -632,37 +667,33 @@ function salvarConfiguracaoDoPolo(poloNome, index) {
     const btn = document.querySelector(`#detail-row-${index} .btn-save`);
     const originalText = btn.innerHTML;
     btn.style.backgroundColor = '#eab308'; 
-    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Enviando para Planilha...`;
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Sincronizando Cloud...`;
 
-    // 4. Integração assíncrona com o Sheets Cloud
     fetch(WEB_APP_URL, {
         method: 'POST',
         mode: 'no-cors', 
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dadosDoPolo)
     })
     .then(() => {
         btn.style.backgroundColor = '#10b981'; 
         btn.innerHTML = `<i class="fa-solid fa-check"></i> Salvo na Nuvem!`;
-        
         setTimeout(() => {
             btn.style.backgroundColor = '';
             btn.innerHTML = originalText;
         }, 2000);
     })
     .catch(error => {
-        console.error("Erro ao integrar com o Sheets:", error);
+        console.error(error);
         btn.style.backgroundColor = '#dc2626'; 
-        btn.innerHTML = `<i class="fa-solid fa-xmark"></i> Erro ao conectar`;
-        
+        btn.innerHTML = `<i class="fa-solid fa-xmark"></i> Erro ao sincronizar`;
         setTimeout(() => {
             btn.style.backgroundColor = '';
             btn.innerHTML = originalText;
         }, 2000);
     });
 }
+
 
 // =========================================================================
 // 9. ATUALIZAÇÃO DOS CARDS E BADGES DE MÉTRICAS
@@ -691,29 +722,3 @@ function atualizarIndicadores(listaFiltrada) {
     const txtBadgeConcluidos = document.getElementById('txt-badge-concluidos');
     if (txtBadgeConcluidos) txtBadgeConcluidos.textContent = totalConcluidos;
 }
-// Aguarda o HTML carregar completamente
-document.addEventListener('DOMContentLoaded', () => {
-    
-    // Seleciona o botão de sair pelo ID
-    const btnSair = document.getElementById('btn-sair');
-
-    // Verifica se o botão realmente existe na página antes de aplicar o evento
-    if (btnSair) {
-        btnSair.addEventListener('click', (event) => {
-            event.preventDefault(); // Evita qualquer comportamento padrão inesperado
-
-            // 1. Limpa os dados de autenticação salvos no navegador
-            localStorage.clear(); // Limpa todo o localStorage
-            sessionStorage.clear(); // Limpa todo o sessionStorage
-
-            // Se você usa chaves específicas como 'usuarioLogado' ou 'token', pode usar:
-            // localStorage.removeItem('token');
-
-            // 2. Exibe um aviso rápido (opcional, melhora a experiência)
-            alert('Deslogado com sucesso! Redirecionando...');
-
-            // 3. Redireciona para a sua página de login (ajuste o nome do arquivo se for diferente)
-            window.location.href = 'login.html'; 
-        });
-    }
-});
