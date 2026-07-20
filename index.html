@@ -84,23 +84,27 @@
                 Painéis
             </div>
 
-            <!-- Item 1: Painel Geral (Tela Atual) -->
+            <!-- Item 1: Painel Geral (Tela Atual - Ativo) -->
             <a href="#" style="display: flex; align-items: center; gap: 12px; color: #ffffff; background-color: #1e293b; padding: 12px; border-radius: 8px; text-decoration: none; font-size: 0.95rem; font-weight: 500; transition: all 0.2s;">
                 <i class="fa-solid fa-hotel" style="color: #38bdf8; width: 20px; text-align: center;"></i>
                 <span>Lista de Polos</span>
+            </a>
+
+            <!-- NOVO BOTÃO: Gráficos & Mapas -->
+            <a href="dashboard.html" style="display: flex; align-items: center; gap: 12px; color: #94a3b8; padding: 12px; border-radius: 8px; text-decoration: none; font-size: 0.95rem; font-weight: 500; transition: all 0.2s;"
+               onmouseover="this.style.color='#ffffff'; this.style.backgroundColor='#1e293b';" 
+               onmouseout="this.style.color='#94a3b8'; this.style.backgroundColor='transparent';">
+                <i class="fa-solid fa-earth-americas" style="color: #10b981; width: 20px; text-align: center;"></i>
+                <span>Gráficos & Mapas</span>
             </a>
         </nav>
         
         <!-- Seção Inferior: Links Úteis + Botão de Sair Agrupados -->
         <div class="sidebar-footer" style="display: flex; flex-direction: column; gap: 15px;">
             
-            <!-- Grupo de Links Úteis (Posicionado logo acima do botão Sair) -->
+            <!-- Grupo de Links Úteis -->
             <div class="utility-links" style="display: flex; flex-direction: column; gap: 6px;">
-                <!-- Subtítulo Discreto para Ferramentas -->
-                <div style="color: #64748b; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 5px; margin-bottom: 2px;">
-                </div>
-
-                <!-- Link Correto da Planilha de Relatórios -->
+                <!-- Link da Planilha de Relatórios -->
                 <a href="https://docs.google.com/spreadsheets/d/1_8l39f0R50RvmeFiSqd3_lXwWaVN_YipF-JHZe-hVEc/edit?gid=0#gid=0" 
                    target="_blank" 
                    rel="noopener noreferrer"
@@ -154,7 +158,7 @@
                 </div>
                 
                 <!-- Logo da UniFECAF -->
-       <img src="logo-unifecaf.png.png" alt="Logo UniFECAF" class="brand-logo">
+                <img src="logo-unifecaf.png.png" alt="Logo UniFECAF" class="brand-logo">
             </header>
 
             <section class="cards-grid">
