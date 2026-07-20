@@ -10,6 +10,7 @@
     <style>
         :root {
             --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
             --bg-body: #f8fafc;
             --text-dark: #1e293b;
             --text-muted: #64748b;
@@ -36,6 +37,9 @@
             width: 100%;
             max-width: 420px;
             border: 1px solid var(--border-color);
+        }
+
+        .header-box {
             text-align: center;
         }
 
@@ -48,12 +52,54 @@
         h2 { font-size: 1.5rem; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
         p { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 28px; }
 
-        .btn-google {
+        /* Estilização do Formulário Manual */
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-wrapper i {
+            position: absolute;
+            left: 14px;
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 14px 12px 42px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        .btn-submit {
             width: 100%;
             padding: 14px;
-            background-color: #ffffff;
-            color: #374151;
-            border: 1px solid #d1d5db;
+            background-color: var(--primary-color);
+            color: #ffffff;
+            border: none;
             border-radius: 8px;
             font-size: 0.95rem;
             font-weight: 600;
@@ -62,94 +108,100 @@
             align-items: center;
             justify-content: center;
             gap: 12px;
-            transition: all 0.2s ease;
+            transition: background-color 0.2s ease;
+            margin-top: 10px;
         }
 
-        .btn-google:hover {
-            background-color: #f9fafb;
-            border-color: #9ca3af;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-
-        .btn-google img {
-            width: 20px;
-            height: 20px;
+        .btn-submit:hover {
+            background-color: var(--primary-hover);
         }
 
         .error-message {
             color: #ef4444;
             font-size: 0.85rem;
-            margin-top: 16px;
+            margin-top: 18px;
             display: none;
-            padding: 10px;
+            padding: 12px;
             background-color: #fef2f2;
             border-radius: 6px;
             border: 1px solid #fee2e2;
+            text-align: center;
+            font-weight: 500;
         }
     </style>
 </head>
 <body>
 
     <div class="login-container">
-       <img src="logo-unifecaf.png.png" alt="Logo UniFECAF" class="brand-logo">
-        
-        <h2>Acesso ao Painel</h2>
-        <p>Use sua conta institucional para acessar</p>
+        <div class="header-box">
+            <img src="logo-unifecaf.png.png" alt="Logo UniFECAF" class="brand-logo">
+            <h2>Acesso ao Painel</h2>
+            <p>Insira suas credenciais administrativas</p>
+        </div>
 
-        <button class="btn-google" onclick="loginComGoogle()">
-            <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg" alt="Google">
-            Continuar com o Google
-        </button>
+        <!-- FORMULÁRIO INTEGRADO AO SEU SCRIPT.JS -->
+        <form id="form-login">
+            <div class="form-group">
+                <label for="email">E-mail Corporativo</label>
+                <div class="input-wrapper">
+                    <i class="fa-solid fa-envelope"></i>
+                    <input type="email" id="email" class="form-control" placeholder="exemplo@unifecaf.com.br" required autocomplete="email">
+                </div>
+            </div>
 
-        <div id="error-msg" class="error-message"></div>
+            <div class="form-group">
+                <label for="senha">Senha de Acesso</label>
+                <div class="input-wrapper">
+                    <i class="fa-solid fa-lock"></i>
+                    <input type="password" id="senha" class="form-control" placeholder="••••••••" required autocomplete="current-password">
+                </div>
+            </div>
+
+            <button type="submit" class="btn-submit">
+                <i class="fa-solid fa-right-to-bracket"></i> Entrar no Sistema
+            </button>
+        </form>
+
+        <!-- Mensagem de feedback de erro gerenciada pelo Script -->
+        <div id="msg-erro" class="error-message">
+            <i class="fa-solid fa-circle-exclamation"></i> E-mail ou senha incorretos!
+        </div>
     </div>
 
-    <!-- Scripts do Firebase v9 via Web CDN (Sem necessidade de npm install) -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+    <!-- Vinculação ao script do painel principal para rodar as validações -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const formLogin = document.getElementById("form-login");
+        
+        if (formLogin) {
+            formLogin.addEventListener("submit", function (e) {
+                e.preventDefault(); 
+                
+                const emailDigitado = document.getElementById("email").value.trim();
+                const senhaDigitada = document.getElementById("senha").value;
+                const msgErro = document.getElementById("msg-erro");
 
-        // Suas chaves oficiais do Firebase configuradas aqui:
-        const firebaseConfig = {
-            apiKey: "AIzaSyAJl_AebqJXr0IhdZRYZBKefNQ-cVVOznA",
-            authDomain: "visita-virtual-polos.firebaseapp.com",
-            projectId: "visita-virtual-polos",
-            storageBucket: "visita-virtual-polos.firebasestorage.app",
-            messagingSenderId: "879246839061",
-            appId: "1:879246839061:web:aeedebc1ef53b6beff6d1c",
-            measurementId: "G-050Q1KWGZT"
-        };
+                // ==========================================
+                // CONFIGURAÇÃO DOS USUÁRIOS PERMITIDOS
+                // ==========================================
+                const usuariosPermitidos = [
+                    { email: "regulatorio@fecaf.com.br", senha: "fecaf2026" },
+                    { email: "paulo.santos@fecaf.com.br", senha: "fecaf2026" },
+                    { email: "euvas.santos@fecaf.com.br", senha: "fecaf2026" },
+                    { email: "thayna.oliveira@fecaf.com.br", senha: "fecaf2026" },
+                    { email: "yago.brito@fecaf.com.br", senha: "fecaf2026" }
+                ];
 
-        // Inicializa o Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const provider = new GoogleAuthProvider();
+                // Varre a lista procurando se existe um e-mail e senha correspondentes
+                const usuarioValido = usuariosPermitidos.find(u => u.email === emailDigitado && u.senha === senhaDigitada);
 
-        window.loginComGoogle = function() {
-            const errorMsg = document.getElementById('error-msg');
-            errorMsg.style.display = 'none';
-
-            signInWithPopup(auth, provider)
-                .then((result) => {
-                    const user = result.user;
-                    
-                    // 🔒 TRAVA DE SEGURANÇA: Só aceita @fecaf.com.br ou @unifecaf.edu.br
-                    if (user.email.endsWith('@fecaf.com.br') || user.email.endsWith('@unifecaf.edu.br')) {
-                        localStorage.setItem('painel_polos_logado', 'true');
-                        window.location.href = 'index.html';
-                    } else {
-                        // Desloga do Google se for uma conta pessoal (@gmail.com)
-                        auth.signOut();
-                        errorMsg.innerText = "Acesso recusado. Use seu e-mail institucional da FECAF.";
-                        errorMsg.style.display = 'block';
-                    }
-                })
-                .catch((error) => {
-                    console.error(error);
-                    errorMsg.innerText = "Erro ao autenticar. Verifique a janela de login.";
-                    errorMsg.style.display = 'block';
-                });
+                if (usuarioValido) {
+                    localStorage.setItem("painel_polos_logado", "true");
+                    window.location.href = "index.html"; // Vai para o painel
+                } else {
+                    if (msgErro) msgErro.style.display = "block";
+                }
+            });
         }
-    </script>
-</body>
-</html>
+    });
+</script>
