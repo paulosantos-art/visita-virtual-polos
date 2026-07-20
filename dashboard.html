@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Análise - Visita Virtual dos Polos</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Bibliotecas do Mapa (Leaflet) e Gráfico (Chart.js) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* Mantendo a estrutura do Layout Global Claro */
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            min-height: 100vh;
+            background-color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .main-content {
+            flex: 1;
+            height: 100vh;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+
+        .main-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .brand-logo {
+            height: 48px;
+            width: auto;
+            object-fit: contain;
+            margin-left: 20px;
+        }
+
+        /* Estilização dos Componentes de Filtro - Ajustado para Horizontal Perfeita */
+        .filter-bar {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin-top: 30px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .filter-block {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .filter-label {
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .filter-select {
+            width: 100%;
+            padding: 12px 14px;
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            color: #64748b;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 500;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 12px;
+        }
+
+        .filter-select:focus {
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+
+        /* Estrutura de Grid para o Mapa e Gráfico */
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-top: 24px;
+        }
+
+        /* Cards brancos seguindo o padrão da listagem */
+        .analytics-card {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .analytics-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .analytics-card h3 {
+            margin: 0;
+            color: #1e293b;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        /* Badge do totalizador de polos da lista */
+        .count-badge {
+            background-color: #10b981;
+            color: #ffffff;
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 20px;
+        }
+
+        /* Container do Mapa */
+        .map-container {
+            height: 450px;
+            width: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* Container do Gráfico */
+        .chart-container {
+            position: relative;
+            height: 450px;
+            width: 100%;
+        }
+
+        /* Container e Design da Tabela de Dados */
+        .table-section {
+            margin-top: 24px;
+            margin-bottom: 30px;
+        }
+
+        .table-responsive-container {
+            max-height: 380px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-top: 5px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        .data-table thead th {
+            position: sticky;
+            top: 0;
+            background-color: #f8fafc;
+            color: #64748b;
+            font-weight: 600;
+            padding: 14px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            z-index: 10;
+        }
+
+        .data-table tbody tr {
+            border-bottom: 1px solid #f1f5f9;
+            transition: background-color 0.2s;
+        }
+
+        .data-table tbody tr:hover {
+            background-color: #f8fafc;
+        }
+
+        .data-table tbody td {
+            padding: 12px 16px;
+            color: #334155;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 220px;
+        }
+
+        @media (max-width: 1024px) {
+            .analytics-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            body { flex-direction: column; }
+            .sidebar { width: 100% !important; height: auto !important; }
+            .main-content { height: auto; }
+            .main-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+            .brand-logo { margin-left: 0; align-self: flex-end; }
+            .filter-bar { flex-direction: column; align-items: flex-start; gap: 16px; }
+            .filter-block { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR FIXA (Esquerda) -->
+    <aside class="sidebar" style="width: 250px; height: 100vh; background-color: #0f172a; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; box-sizing: border-box; position: sticky; top: 0; z-index: 100;">
+        
+        <nav class="menu-links" style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="color: #ffffff; font-weight: 700; font-size: 1.1rem; margin-bottom: 25px; display: flex; align-items: center; gap: 10px; padding-left: 5px;">
+                <i class="fa-solid fa-chart-pie" style="color: #38bdf8;"></i>
+                <span>Navegação</span>
+            </div>
+
+            <div style="color: #64748b; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 10px 0 5px 5px;">
+                Painéis
+            </div>
+
+            <!-- Item 1: Lista de Polos -->
+            <a href="index.html" style="display: flex; align-items: center; gap: 12px; color: #94a3b8; padding: 12px; border-radius: 8px; text-decoration: none; font-size: 0.95rem; font-weight: 500; transition: all 0.2s;"
+               onmouseover="this.style.color='#ffffff'; this.style.backgroundColor='#1e293b';" 
+               onmouseout="this.style.color='#94a3b8'; this.style.backgroundColor='transparent';">
+                <i class="fa-solid fa-hotel" style="color: #38bdf8; width: 20px; text-align: center;"></i>
+                <span>Lista de Polos</span>
+            </a>
+
+            <!-- Item 2: Gráficos & Mapas -->
+            <a href="#" style="display: flex; align-items: center; gap: 12px; color: #ffffff; background-color: #1e293b; padding: 12px; border-radius: 8px; text-decoration: none; font-size: 0.95rem; font-weight: 500; transition: all 0.2s;">
+                <i class="fa-solid fa-earth-americas" style="color: #10b981; width: 20px; text-align: center;"></i>
+                <span>Gráficos & Mapas</span>
+            </a>
+        </nav>
+        
+        <div class="sidebar-footer" style="display: flex; flex-direction: column; gap: 15px;">
+            <div class="utility-links" style="display: flex; flex-direction: column; gap: 6px;">
+                <a href="https://docs.google.com/spreadsheets/d/1_8l39f0R50RvmeFiSqd3_lXwWaVN_YipF-JHZe-hVEc/edit?gid=0#gid=0" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style="display: flex; align-items: center; gap: 12px; color: #94a3b8; padding: 12px; border-radius: 8px; text-decoration: none; font-size: 0.95rem; font-weight: 500; transition: all 0.2s;"
+                    onmouseover="this.style.color='#ffffff'; this.style.backgroundColor='#1e293b';" 
+                    onmouseout="this.style.color='#94a3b8'; this.style.backgroundColor='transparent';">
+                    <i class="fa-solid fa-table" style="color: #10b981; width: 20px; text-align: center;"></i>
+                    <span>Planilha de Relatórios</span>
+                </a>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid #1e293b; margin: 0;">
+
+            <button id="btn-sair" 
+                    style="width: 100%; background-color: transparent; color: #f87171; border: 1px solid #f87171; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.95rem; font-weight: 500; transition: all 0.2s ease-in-out;"
+                    onmouseover="this.style.backgroundColor='#f87171'; this.style.color='#ffffff';"
+                    onmouseout="this.style.backgroundColor='transparent'; this.style.color='#f87171';">
+                <i class="fa-solid fa-right-from-bracket" style="font-size: 1.1rem;"></i> 
+                <span>Sair do Painel</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- CONTEÚDO PRINCIPAL (Direita) -->
+    <div class="main-content">
+        <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 30px 20px;">
+            
+            <header class="main-header">
+                <div class="logo-area" style="display: flex; align-items: center; gap: 15px;">
+                    <div class="icon-wrapper" style="background-color: #10b981; color: #ffffff; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                    </div>
+                    <div>
+                        <h1 style="margin: 0; color: #1e293b; font-size: 1.5rem; font-weight: 700;">Análise Geográfica de Polos</h1>
+                        <p style="margin: 4px 0 0 0; color: #64748b; font-size: 0.9rem;">Visão geral quantitativa e distribuição por regiões</p>
+                    </div>
+                </div>
+                <img src="logo-unifecaf.png.png" alt="Logo UniFECAF" class="brand-logo">
+            </header>
+
+            <!-- BARRA DE FILTROS TOTALMENTE CORRIGIDA E ADAPTADA AO SEU DESIGN -->
+            <div class="filter-bar">
+                <!-- Região -->
+                <div class="filter-block">
+                    <label for="filtroRegiao" class="filter-label">Região</label>
+                    <select id="filtroRegiao" class="filter-select">
+                        <option value="">Todas as Regiões</option>
+                        <option value="Norte">Norte</option>
+                        <option value="Nordeste">Nordeste</option>
+                        <option value="Centro-Oeste">Centro-Oeste</option>
+                        <option value="Sudeste">Sudeste</option>
+                        <option value="Sul">Sul</option>
+                    </select>
+                </div>
+                
+                <!-- Estado -->
+                <div class="filter-block">
+                    <label for="filtroEstado" class="filter-label">Estado</label>
+                    <select id="filtroEstado" class="filter-select">
+                        <option value="">Todos os Estados</option>
+                    </select>
+                </div>
+                
+                <!-- Modelo de Oferta -->
+                <div class="filter-block">
+                    <label for="filtroModelo" class="filter-label">Modelo de Oferta</label>
+                    <select id="filtroModelo" class="filter-select">
+                        <option value="">Todos os Modelos de Oferta</option>
+                        <option value="EAD">EAD</option>
+                        <option value="SEMI">Semipresencial</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Grid com Mapa e Gráfico -->
+            <section class="analytics-grid">
+                
+                <!-- CARD MAPA (Por Estado) -->
+                <div class="analytics-card">
+                    <h3>Distribuição por Estados (Mapa)</h3>
+                    <div id="mapaPolos" class="map-container" style="margin-top: 15px;"></div>
+                </div>
+                
+                <!-- CARD GRÁFICO (Por Região) -->
+                <div class="analytics-card">
+                    <h3>Quantidade de Polos por Região</h3>
+                    <div class="chart-container" style="margin-top: 15px;">
+                        <canvas id="graficoRegioes"></canvas>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- NOVA LISTA DE POLOS DINÂMICA (Vinculada aos Filtros) -->
+            <section class="analytics-card table-section">
+                <div class="analytics-card-header">
+                    <h3>Polos Detalhados</h3>
+                    <span id="totalPolosBadge" class="count-badge">0 Polos</span>
+                </div>
+                <div class="table-responsive-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr id="cabecalhoTabela">
+                                <!-- Preenchido de forma dinâmica via script -->
+                            </tr>
+                        </thead>
+                        <tbody id="corpoTabela">
+                            <tr>
+                                <td class="text-center" style="padding: 30px; color: #64748b; text-align: center;">
+                                    Carregando registros de polos...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <!-- Script de Processamento e Inicialização -->
+    <script src="dashboard.js"></script>
+</body>
+</html>
