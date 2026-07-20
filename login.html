@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Visita Virtual dos Polos</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --bg-body: #f8fafc;
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-dark);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+            width: 100%;
+            max-width: 420px;
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .brand-logo {
+            height: 50px;
+            margin-bottom: 24px;
+            object-fit: contain;
+        }
+
+        h2 { font-size: 1.5rem; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
+        p { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 28px; }
+
+        .btn-google {
+            width: 100%;
+            padding: 14px;
+            background-color: #ffffff;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-google:hover {
+            background-color: #f9fafb;
+            border-color: #9ca3af;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .btn-google img {
+            width: 20px;
+            height: 20px;
+        }
+
+        .error-message {
+            color: #ef4444;
+            font-size: 0.85rem;
+            margin-top: 16px;
+            display: none;
+            padding: 10px;
+            background-color: #fef2f2;
+            border-radius: 6px;
+            border: 1px solid #fee2e2;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-container">
+       <img src="logo-unifecaf.png.png" alt="Logo UniFECAF" class="brand-logo">
+        
+        <h2>Acesso ao Painel</h2>
+        <p>Use sua conta institucional para acessar</p>
+
+        <button class="btn-google" onclick="loginComGoogle()">
+            <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg" alt="Google">
+            Continuar com o Google
+        </button>
+
+        <div id="error-msg" class="error-message"></div>
+    </div>
+
+    <!-- Scripts do Firebase v9 via Web CDN (Sem necessidade de npm install) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+
+        // Suas chaves oficiais do Firebase configuradas aqui:
+        const firebaseConfig = {
+            apiKey: "AIzaSyAJl_AebqJXr0IhdZRYZBKefNQ-cVVOznA",
+            authDomain: "visita-virtual-polos.firebaseapp.com",
+            projectId: "visita-virtual-polos",
+            storageBucket: "visita-virtual-polos.firebasestorage.app",
+            messagingSenderId: "879246839061",
+            appId: "1:879246839061:web:aeedebc1ef53b6beff6d1c",
+            measurementId: "G-050Q1KWGZT"
+        };
+
+        // Inicializa o Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        window.loginComGoogle = function() {
+            const errorMsg = document.getElementById('error-msg');
+            errorMsg.style.display = 'none';
+
+            signInWithPopup(auth, provider)
+                .then((result) => {
+                    const user = result.user;
+                    
+                    // 🔒 TRAVA DE SEGURANÇA: Só aceita @fecaf.com.br ou @unifecaf.edu.br
+                    if (user.email.endsWith('@fecaf.com.br') || user.email.endsWith('@unifecaf.edu.br')) {
+                        localStorage.setItem('painel_polos_logado', 'true');
+                        window.location.href = 'index.html';
+                    } else {
+                        // Desloga do Google se for uma conta pessoal (@gmail.com)
+                        auth.signOut();
+                        errorMsg.innerText = "Acesso recusado. Use seu e-mail institucional da FECAF.";
+                        errorMsg.style.display = 'block';
+                    }
+                })
+                .catch((error) => {
+                    console.error(error);
+                    errorMsg.innerText = "Erro ao autenticar. Verifique a janela de login.";
+                    errorMsg.style.display = 'block';
+                });
+        }
+    </script>
+</body>
+</html>
