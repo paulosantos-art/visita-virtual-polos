@@ -4,139 +4,114 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visita Virtual dos Polos</title>
+    <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Folha de Estilos Externa -->
     <link rel="stylesheet" href="style.css">
-
     <style>
-        /* Estrutura do Layout Global */
-        body {
-            margin: 0;
-            padding: 0;
+        /* Estilos para a Barra de Ações dos Polos */
+        .polo-actions-bar {
             display: flex;
-            min-height: 100vh;
-            background-color: #f8fafc;
-            font-family: 'Inter', sans-serif;
-        }
-
-        /* Área do conteúdo principal ao lado da Sidebar */
-        .main-content {
-            flex: 1;
-            height: 100vh;
-            overflow-y: auto;
-            box-sizing: border-box;
-        }
-
-        /* CSS para alinhar a logo UniFECAF à direita do cabeçalho */
-        .main-header {
-            display: flex;
-            justify-content: space-between;
             align-items: center;
-            width: 100%;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 16px 0;
+            border-top: 1px solid #e2e8f0;
+            margin-top: 20px;
+            flex-wrap: wrap;
         }
 
-        .brand-logo {
-            height: 48px;
-            width: auto;
-            object-fit: contain;
-            margin-left: 20px;
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
         }
 
-        /* Ajuste para telas menores (responsividade para celular) */
-        @media (max-width: 640px) {
-            body {
-                flex-direction: column;
-            }
-            .sidebar {
-                width: 100% !important;
-                height: auto !important;
-            }
-            .main-content {
-                height: auto;
-            }
-            .main-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 16px;
-            }
-            .brand-logo {
-                margin-left: 0;
-                align-self: flex-end;
-            }
+        .btn-action:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-limpar {
+            background-color: #ef4444;
+            color: #ffffff;
+            margin-right: auto; /* Empurra o botão de limpar para a esquerda */
+        }
+        .btn-limpar:hover {
+            background-color: #dc2626;
+        }
+
+        .btn-salvar {
+            background-color: #10b981;
+            color: #ffffff;
+        }
+        .btn-salvar:hover {
+            background-color: #059669;
+        }
+
+        .btn-agendar {
+            background-color: #0284c7;
+            color: #ffffff;
+        }
+        .btn-agendar:hover {
+            background-color: #0369a1;
         }
     </style>
 </head>
 <body>
 
     <!-- SIDEBAR FIXA (Esquerda) -->
-    <aside class="sidebar" style="width: 250px; height: 100vh; background-color: #0f172a; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; box-sizing: border-box; position: sticky; top: 0; z-index: 100;">
-        
-        <!-- Seção Superior: Apenas Navegação Principal -->
-        <nav class="menu-links" style="display: flex; flex-direction: column; gap: 8px;">
-            <!-- Cabeçalho do Menu -->
-            <div style="color: #ffffff; font-weight: 700; font-size: 1.1rem; margin-bottom: 25px; display: flex; align-items: center; gap: 10px; padding-left: 5px;">
-                <i class="fa-solid fa-chart-pie" style="color: #38bdf8;"></i>
+    <aside class="sidebar">
+        <!-- Navegação Principal -->
+        <nav class="menu-links">
+            <div class="menu-header">
+                <i class="fa-solid fa-chart-pie"></i>
                 <span>Navegação</span>
             </div>
 
-            <!-- Subtítulo Discreto -->
-            <div style="color: #64748b; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 10px 0 5px 5px;">
-                Painéis
-            </div>
+            <div class="menu-subtitle">Painéis</div>
 
-            <!-- Item 1: Painel Geral (Tela Atual - Ativo) -->
-            <a href="#" style="display: flex; align-items: center; gap: 12px; color: #ffffff; background-color: #1e293b; padding: 12px; border-radius: 8px; text-decoration: none; font-size: 0.95rem; font-weight: 500; transition: all 0.2s;">
-                <i class="fa-solid fa-hotel" style="color: #38bdf8; width: 20px; text-align: center;"></i>
+            <a href="index.html" class="btn-nav active">
+                <i class="fa-solid fa-hotel icon-blue"></i>
                 <span>Lista de Polos</span>
             </a>
 
-            <!-- NOVO BOTÃO: Gráficos & Mapas -->
-            <a href="dashboard.html" style="display: flex; align-items: center; gap: 12px; color: #94a3b8; padding: 12px; border-radius: 8px; text-decoration: none; font-size: 0.95rem; font-weight: 500; transition: all 0.2s;"
-               onmouseover="this.style.color='#ffffff'; this.style.backgroundColor='#1e293b';" 
-               onmouseout="this.style.color='#94a3b8'; this.style.backgroundColor='transparent';">
-                <i class="fa-solid fa-earth-americas" style="color: #10b981; width: 20px; text-align: center;"></i>
-                <span>Gráficos & Mapas</span>
+            <a href="agenda.html" class="btn-nav">
+                <i class="fa-solid fa-calendar-days icon-blue"></i>
+                <span>Agenda de Visitas</span>
+            </a>
+
+            <a href="dashboard.html" class="btn-nav">
+                <i class="fa-solid fa-earth-americas icon-green"></i>
+                <span>Dashboard</span>
             </a>
         </nav>
         
-        <!-- Seção Inferior: Links Úteis + Botão de Sair Agrupados -->
-        <div class="sidebar-footer" style="display: flex; flex-direction: column; gap: 15px;">
-            
-            <!-- Grupo de Links Úteis -->
-            <div class="utility-links" style="display: flex; flex-direction: column; gap: 6px;">
-                <!-- Link da Planilha de Relatórios -->
+        <!-- Rodapé da Sidebar: Links + Sair -->
+        <div class="sidebar-footer">
+            <div class="utility-links">
                 <a href="https://docs.google.com/spreadsheets/d/1_8l39f0R50RvmeFiSqd3_lXwWaVN_YipF-JHZe-hVEc/edit?gid=0#gid=0" 
                    target="_blank" 
                    rel="noopener noreferrer"
-                   style="display: flex; align-items: center; gap: 12px; color: #94a3b8; padding: 12px; border-radius: 8px; text-decoration: none; font-size: 0.95rem; font-weight: 500; transition: all 0.2s;"
-                   onmouseover="this.style.color='#ffffff'; this.style.backgroundColor='#1e293b';" 
-                   onmouseout="this.style.color='#94a3b8'; this.style.backgroundColor='transparent';">
-                    <i class="fa-solid fa-table" style="color: #10b981; width: 20px; text-align: center;"></i>
-                    <span>Planilha de Relatórios</span>
+                   class="btn-nav">
+                     <i class="fa-solid fa-table icon-green"></i>
+                     <span>Relatórios</span>
                 </a>
             </div>
 
-            <!-- Divisor sutil e elegante -->
-            <hr style="border: 0; border-top: 1px solid #1e293b; margin: 0;">
+            <hr class="sidebar-divider">
 
-            <!-- Botão de Sair -->
-            <button id="btn-sair" 
-                    style="width: 100%; 
-                           background-color: transparent; 
-                           color: #f87171; 
-                           border: 1px solid #f87171; 
-                           padding: 12px; 
-                           border-radius: 6px; 
-                           cursor: pointer; 
-                           display: flex; 
-                           align-items: center; 
-                           gap: 10px; 
-                           font-size: 0.95rem; 
-                           font-weight: 500;
-                           transition: all 0.2s ease-in-out;"
-                    onmouseover="this.style.backgroundColor='#f87171'; this.style.color='#ffffff';"
-                    onmouseout="this.style.backgroundColor='transparent'; this.style.color='#f87171';">
-                <i class="fa-solid fa-right-from-bracket" style="font-size: 1.1rem;"></i> 
+            <button id="btn-sair" class="btn-sair">
+                <i class="fa-solid fa-right-from-bracket"></i> 
                 <span>Sair do Painel</span>
             </button>
         </div>
@@ -144,139 +119,134 @@
 
     <!-- CONTEÚDO PRINCIPAL (Direita) -->
     <div class="main-content">
-        <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 30px 20px;">
+        <div class="container">
             
             <header class="main-header">
-                <div class="logo-area" style="display: flex; align-items: center; gap: 15px;">
+                <div class="logo-area">
                     <div class="icon-wrapper">
                         <i class="fa-solid fa-graduation-cap"></i>
                     </div>
                     <div>
                         <h1>Visita Virtual dos Polos</h1>
-                        <p>Explore nossos polos de forma interativa</p>
                     </div>
                 </div>
                 
-                <!-- Logo da UniFECAF -->
                 <img src="logo-unifecaf.png.png" alt="Logo UniFECAF" class="brand-logo">
             </header>
 
-            <section class="cards-grid">
-                <div class="card card-total">
-                    <div class="card-icon">
-                        <i class="fa-solid fa-hotel"></i>
+            <!-- PAINEL DA LISTA DOS POLOS -->
+            <div id="aba-polos" class="secao-painel">
+                <!-- Cards Informativos -->
+                <section class="cards-grid">
+                    <div class="card card-total">
+                        <div class="card-icon"><i class="fa-solid fa-hotel"></i></div>
+                        <div class="card-info">
+                            <span class="card-number" id="txt-total-polos">0</span>
+                            <span class="card-label">Total de Polos Ativos</span>
+                        </div>
+                        <div class="card-border-indicator border-total"></div>
                     </div>
-                    <div class="card-info">
-                        <span class="card-number" id="txt-total-polos">0</span>
-                        <span class="card-label">Total de Polos Ativos</span>
+                    
+                    <div class="card card-ead">
+                        <div class="card-icon"><i class="fa-solid fa-laptop-code"></i></div>
+                        <div class="card-info">
+                            <span class="card-number" id="txt-total-ead">0</span>
+                            <span class="card-label">Polos EAD</span>
+                        </div>
+                        <div class="card-border-indicator border-ead"></div>
                     </div>
-                    <div class="card-border-indicator border-total"></div>
-                </div>
+
+                    <div class="card card-semi">
+                        <div class="card-icon"><i class="fa-solid fa-user-group"></i></div>
+                        <div class="card-info">
+                            <span class="card-number" id="txt-total-semi">0</span>
+                            <span class="card-label">Polos Semipresenciais</span>
+                        </div>
+                        <div class="card-border-indicator border-semi"></div>
+                    </div>
+                </section>
+
+                <!-- Filtros e Busca -->
+                <section class="filter-section">
+                    <div class="search-box">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" id="input-busca" placeholder="Digite o nome do polo para pesquisar...">
+                    </div>
+
+                    <div class="dropdowns-grid">
+                        <div class="filter-group">
+                            <label for="select-regiao">Região</label>
+                            <select id="select-regiao">
+                                <option value="TODAS">Todas as Regiões</option>
+                                <option value="Norte">Norte</option>
+                                <option value="Nordeste">Nordeste</option>
+                                <option value="Centro-Oeste">Centro-Oeste</option>
+                                <option value="Sudeste">Sudeste</option>
+                                <option value="Sul">Sul</option>
+                                <option value="Estrangeiro">Estrangeiro</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="select-estado">Estado</label>
+                            <select id="select-estado">
+                                <option value="TODOS">Todos os Estados</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="select-modelo">Modelo de Oferta</label>
+                            <select id="select-modelo">
+                                <option value="TODOS">Todos os Modelos de Oferta</option>
+                                <option value="EAD">EAD</option>
+                                <option value="Semipresencial">Semipresencial</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="selectCurso">Filtrar por Curso</label>
+                            <select id="selectCurso">
+                                <option value="TODOS">Todos os Cursos</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>    
                 
-                <div class="card card-ead">
-                    <div class="card-icon">
-                        <i class="fa-solid fa-laptop-code"></i>
+                <!-- Resultados e Tabela -->
+                <section class="results-section">
+                    <div class="results-header">
+                        <h2>Lista de Polos</h2>
+                        <div class="results-badges">
+                            <span class="badge-count"><span id="txt-badge-total">0</span> polos</span>
+                            <span class="badge-completed">
+                                <span id="txt-badge-concluidos">0</span> Concluídos
+                            </span>
+                        </div>
                     </div>
-                    <div class="card-info">
-                        <span class="card-number" id="txt-total-ead">0</span>
-                        <span class="card-label">Polos EAD</span>
+                    
+                    <div class="table-wrapper">
+                        <table class="polos-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px;"></th> 
+                                    <th>Região</th>
+                                    <th>UF</th>
+                                    <th>Nome do Polo</th>
+                                    <th>Modelo de Oferta</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabela-polos-body">
+                                <!-- Os polos e seus detalhes expansíveis entram dinamicamente via JS -->
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="card-border-indicator border-ead"></div>
-                </div>
+                </section>
+            </div>
 
-                <div class="card card-semi">
-                    <div class="card-icon">
-                        <i class="fa-solid fa-user-group"></i>
-                    </div>
-                    <div class="card-info">
-                        <span class="card-number" id="txt-total-semi">0</span>
-                        <span class="card-label">Polos Semipresenciais</span>
-                    </div>
-                    <div class="card-border-indicator border-semi"></div>
-                </div>
-            </section>
-
-            <section class="filter-section">
-                <div class="search-box">
-                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                    <input type="text" id="input-busca" placeholder="Digite o nome do polo para pesquisar...">
-                </div>
-
-                <div class="dropdowns-grid">
-                    <div class="filter-group">
-                        <label for="select-regiao">Região</label>
-                        <select id="select-regiao">
-                            <option value="TODAS">Todas as Regiões</option>
-                            <option value="Norte">Norte</option>
-                            <option value="Nordeste">Nordeste</option>
-                            <option value="Centro-Oeste">Centro-Oeste</option>
-                            <option value="Sudeste">Sudeste</option>
-                            <option value="Sul">Sul</option>
-                            <option value="Estrangeiro">Estrangeiro</option>
-                        </select>
-                    </div>
-
-                    <div class="filter-group">
-                        <label for="select-estado">Estado</label>
-                        <select id="select-estado">
-                            <option value="TODOS">Todos os Estados</option>
-                        </select>
-                    </div>
-
-                    <div class="filter-group">
-                        <label for="select-modelo">Modelo de Oferta</label>
-                        <select id="select-modelo">
-                            <option value="TODOS">Todos os Modelos de Oferta</option>
-                            <option value="EAD">EAD</option>
-                            <option value="Semipresencial">Semipresencial</option>
-                        </select>
-                    </div>
-
-                    <div class="filter-group">
-                        <label for="selectCurso">Filtrar por Curso</label>
-                        <select id="selectCurso">
-                            <option value="TODOS">Todos os Cursos</option>
-                        </select>
-                    </div>
-                </div>
-            </section>    
-            
-            <section class="results-section">
-                <div class="results-header">
-                    <h2>Lista de Polos</h2>
-                    <div class="results-badges" style="display: flex; gap: 8px; align-items: center;">
-                        <span class="badge-count"><span id="txt-badge-total">0</span> polos</span>
-                        <span class="badge-completed" style="background-color: #ecfdf5; color: #059669; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; border: 1px solid #a7f3d0;">
-                            <span id="txt-badge-concluidos">0</span> concluídos
-                        </span>
-                    </div>
-                </div>
-                
-                <div class="table-wrapper">
-                    <table class="polos-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 50px;"></th> 
-                                <th>Região</th>
-                                <th>UF</th>
-                                <th>Nome do Polo</th>
-                                <th>Modelo de Oferta</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabela-polos-body">
-                        </tbody>
-                    </table>
-                </div>
-
-                <div id="no-results" class="no-results hidden">
-                    <i class="fa-solid fa-folder-open"></i>
-                    <p>Nenhum Polo Encontrado.</p>
-                </div>
-            </section>
         </div>
     </div>
 
-    <!-- Script com controle de versão por cache -->
-    <script src="script.js?v=1.1"></script>
+    <!-- Script do Comportamento JavaScript -->
+    <script src="script.js"></script>
 </body>
-</html>
+</html>>>
