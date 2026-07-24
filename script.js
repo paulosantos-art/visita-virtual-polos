@@ -14,7 +14,7 @@ const SPREADSHEET_ID = '1km9rpUas9U3V4zqRqCp4AxxR_srUphtlckBuGRF7lqQ';
 
 const SPREADSHEET_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv`;
 const CURSOS_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=P%C3%A1gina1`;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx7buSjmuDCUBS6f8dak8CPxoiDGB0Mz_KyTld6MixqbchCi9gvdKVFDmMu6SNxCTGj/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyotjrDB9PBpOACksBkr0unfryAM9lmNofdlF4Jdw0SiCD-f9LsejcldS0tnZLRJyA7/exec';
 
 let database = [];
 let baseCursosPolos = {}; 
@@ -36,6 +36,8 @@ const txtTotalPolos = document.getElementById('txt-total-polos');
 const txtTotalEad = document.getElementById('txt-total-ead');
 const txtTotalSemi = document.getElementById('txt-total-semi');
 const txtBadgeTotal = document.getElementById('txt-badge-total');
+const btnAgenda = document.getElementById('btn-agenda');
+const txtBadgeConcluidos = document.getElementById('txt-badge-concluidos');
 const btnSair = document.getElementById('btn-sair'); 
 
 
@@ -63,6 +65,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             filtrarEDesenhar();
         });
     }
+
+    if (btnAgenda) {
+        btnAgenda.addEventListener('click', abrirAgendaGlobal);
+    }
     
     if (selectModelo) selectModelo.addEventListener('change', filtrarEDesenhar);
     if (selectCurso) selectCurso.addEventListener('change', filtrarEDesenhar); 
@@ -70,17 +76,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Tecla ESC limpa tudo voltando para os padrões do HTML
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' || event.key === 'Esc') {
+            if (document.activeElement.tagName === 'TEXTAREA') return; // Evita limpar enquanto digita nota
+            
             if (inputBusca) inputBusca.value = '';
             if (selectRegiao) selectRegiao.selectedIndex = 0;
             popularEstadosBaseadoEmRegiao(); 
             if (selectEstado) selectEstado.selectedIndex = 0;
             if (selectModelo) selectModelo.selectedIndex = 0;
             if (selectCurso) selectCurso.selectedIndex = 0; 
-            document.querySelectorAll('.detail-row').forEach(row => row.classList.remove('open'));
+            document.querySelectorAll('.detail-row').forEach(row => row.style.display = 'none');
             document.querySelectorAll('.polo-row').forEach(row => row.classList.remove('expanded'));
             filtrarEDesenhar();
         }
-    });   
+    });     
 });
 
 
@@ -205,6 +213,27 @@ async function carregarDadosDaPlanilha() {
     }
 }
 
+function ajustarRegiaoBaseadoEmEstado() {
+    if (!selectEstado || !selectRegiao) return;
+
+    const estadoSelecionado = selectEstado.value;
+
+    if (estadoSelecionado === 'TODOS' || estadoSelecionado.includes('Todos')) {
+        return;
+    }
+
+    const poloCorrespondente = database.find(p => p.Estado === estadoSelecionado);
+    
+    if (poloCorrespondente && poloCorrespondente.Regiao) {
+        for (let i = 0; i < selectRegiao.options.length; i++) {
+            if (selectRegiao.options[i].value === poloCorrespondente.Regiao) {
+                selectRegiao.selectedIndex = i;
+                break;
+            }
+        }
+    }
+}
+
 function processarCsvProfissional(text) {
     const lines = processarLinhasCSV(text);
     if (lines.length === 0) return [];
@@ -278,7 +307,6 @@ function processarCsvProfissional(text) {
 // 6. MOTOR DO FILTRO INTELIGENTE E DEPENDÊNCIAS CRUZADAS
 // =========================================================================
 
-// Popula o select com TODOS os estados disponíveis na base ao iniciar
 function popularTodosEstadosIniciais() {
     if (!selectEstado) return;
     
@@ -299,7 +327,6 @@ function popularTodosEstadosIniciais() {
     });
 }
 
-// Quando muda a Região -> Filtra a lista de Estados disponíveis
 function popularEstadosBaseadoEmRegiao() {
     if (!selectEstado || !selectRegiao) return;
 
@@ -309,7 +336,6 @@ function popularEstadosBaseadoEmRegiao() {
     let estadosFiltrados = [];
     
     database.forEach(polo => {
-        // Aceita "TODOS" ou o termo exato em português "Todas as Regiões"
         if (regiaoSelecionada === 'TODAS' || regiaoSelecionada.includes('Todas') || polo.Regiao === regiaoSelecionada) {
             if (polo.Estado && !estadosFiltrados.includes(polo.Estado)) {
                 estadosFiltrados.push(polo.Estado);
@@ -334,33 +360,28 @@ function popularEstadosBaseadoEmRegiao() {
     }
 }
 
-// Quando muda o Estado -> Encontra a região dele na base e seleciona automaticamente
-function ajustarRegiaoBaseadoEmEstado() {
-    if (!selectEstado || !selectRegiao) return;
 
-    const estadoSelecionado = selectEstado.value;
-
-    if (estadoSelecionado === 'TODOS' || estadoSelecionado.includes('Todos')) {
-        return; // Mantém a região como está
-    }
-
-    // Busca o primeiro polo correspondente a esse estado para descobrir a Região dele
-    const poloCorrespondente = database.find(p => p.Estado === estadoSelecionado);
+// =========================================================================
+// 7. FUNÇÃO DE ALTERNÂNCIA (TOGGLE) PARA CAIXA DE TEXTO DOS AMBIENTES
+// =========================================================================
+function toggleNotaAmbiente(checkboxId, boxId) {
+    const chk = document.getElementById(checkboxId);
+    const box = document.getElementById(boxId);
     
-    if (poloCorrespondente && poloCorrespondente.Regiao) {
-        // Procura no select de regiões a opção equivalente
-        for (let i = 0; i < selectRegiao.options.length; i++) {
-            if (selectRegiao.options[i].value === poloCorrespondente.Regiao) {
-                selectRegiao.selectedIndex = i;
-                break;
-            }
+    if (chk && box) {
+        if (chk.checked) {
+            box.style.display = 'block';
+            const txt = box.querySelector('textarea');
+            if (txt) txt.focus();
+        } else {
+            box.style.display = 'none';
         }
     }
 }
 
 
 // =========================================================================
-// 7. FILTRAGEM, RENDERIZAÇÃO DA TABELA E DETALHES
+// 8. FILTRAGEM, RENDERIZAÇÃO DA TABELA E DETALHES
 // =========================================================================
 function filtrarEDesenhar() {
     const busca = inputBusca ? inputBusca.value.toLowerCase().trim() : '';
@@ -371,8 +392,6 @@ function filtrarEDesenhar() {
 
     const dadosFiltrados = database.filter(polo => {
         const atendeBusca = polo.Nome.toLowerCase().includes(busca);
-        
-        // Validação inteligente aceitando padrões vazios ou "Todos" do HTML
         const atendeRegiao = (regiao === 'TODAS' || regiao.includes('Todas') || polo.Regiao === regiao);
         const atendeEstado = (estado === 'TODOS' || estado.includes('Todos') || polo.Estado === estado);
         
@@ -473,7 +492,7 @@ function filtrarEDesenhar() {
                 if (dadosSalvos) {
                     const dados = JSON.parse(dadosSalvos);
                     const temTexto = dados.anotacoes && dados.anotacoes.trim() !== '';
-                    const temAmbiente = dados.recepcao || dados.coordenacao || dados.estudos || dados.informatica || dados.especializado;
+                    const temAmbiente = dados.recepcao || dados.coordenacao || dados.estudos || dados.informatica || dados.especializado || dados.outros;
                     if (temTexto || temAmbiente) {
                         checkIconHtml = `<i class="fa-solid fa-circle-check item-visto-check" style="color: #10b981; font-size: 1.15rem; margin-left: auto;" title="Polo Concluído"></i>`;
                     }
@@ -484,7 +503,7 @@ function filtrarEDesenhar() {
                 mainRow.id = `polo-row-${index}`;
                 mainRow.style.cursor = 'pointer';
                 mainRow.innerHTML = `
-                    <td style="text-align: center;"><i class="fa-solid fa-chevron-right toggle-icon" style="transition: transform 0.2s;"></i></td>
+                    <td style="text-align: center;"><i class="fa-solid fa-chevron-right toggle-icon" id="toggle-icon-${index}" style="transition: transform 0.2s;"></i></td>
                     <td>${polo.Regiao}</td>
                     <td>${polo.Estado}</td>
                     <td><strong>${polo.Nome}</strong></td>
@@ -499,98 +518,153 @@ function filtrarEDesenhar() {
                 detailRow.id = `detail-row-${index}`;
                 detailRow.style.display = 'none'; 
                 
+                // Tratamento seguro de aspas no nome do polo
+                const nomePoloEncoded = encodeURIComponent(polo.Nome);
+
                 detailRow.innerHTML = `
                     <td colspan="5" style="padding: 0; border: none;">
                         <div class="detail-container" id="detail-container-${index}" onclick="event.stopPropagation()" style="max-height: none !important; height: auto !important; overflow: visible !important; display: block;">
                             <div class="polo-details-box" style="padding: 24px; background: #fff; border-bottom: 3px solid #e2e8f0;">
+                                
                                 <h3 class="details-title" style="margin-top: 0;">Quadro de Anotações Geral</h3>
-                                <textarea class="notes-textarea" id="notes-${index}" placeholder="Digite notas importantes aqui..." style="width: 100%; min-height: 100px; margin-bottom: 20px;"></textarea>
+                                <textarea class="notes-textarea" id="notes-${index}" placeholder="Digite notas importantes aqui..." style="width: 100%; min-height: 90px; margin-bottom: 20px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; font-family: inherit;"></textarea>
                                 
                                 <h3 class="details-title">Ambientes do Polo (Selecione se houver)</h3>
-                                <div class="switches-grid" style="margin-bottom: 20px;">
-                                    <div class="switch-item">
-                                        <span>Recepção</span>
-                                        <label class="switch">
-                                            <input type="checkbox" id="env-recepcao-${index}">
-                                            <span class="slider"></span>
-                                        </label>
+                                <div class="switches-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                                    
+                                    <!-- Recepção -->
+                                    <div class="switch-item" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <span style="font-weight: 600;">Recepção</span>
+                                            <label class="switch">
+                                                <input type="checkbox" id="env-recepcao-${index}" onchange="toggleNotaAmbiente('env-recepcao-${index}', 'box-recepcao-${index}')">
+                                                <span class="slider"></span>
+                                            </label>
+                                        </div>
+                                        <div id="box-recepcao-${index}" style="display: none; margin-top: 10px;">
+                                            <textarea id="note-recepcao-${index}" placeholder="Anotações sobre a Recepção..." style="width: 100%; height: 60px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.85rem; font-family: inherit;"></textarea>
+                                        </div>
                                     </div>
-                                    <div class="switch-item">
-                                        <span>Sala de Coordenação</span>
-                                        <label class="switch">
-                                            <input type="checkbox" id="env-coordenacao-${index}">
-                                            <span class="slider"></span>
-                                        </label>
+
+                                    <!-- Sala de Coordenação -->
+                                    <div class="switch-item" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <span style="font-weight: 600;">Sala de Coordenação</span>
+                                            <label class="switch">
+                                                <input type="checkbox" id="env-coordenacao-${index}" onchange="toggleNotaAmbiente('env-coordenacao-${index}', 'box-coordenacao-${index}')">
+                                                <span class="slider"></span>
+                                            </label>
+                                        </div>
+                                        <div id="box-coordenacao-${index}" style="display: none; margin-top: 10px;">
+                                            <textarea id="note-coordenacao-${index}" placeholder="Anotações sobre a Sala de Coordenação..." style="width: 100%; height: 60px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.85rem; font-family: inherit;"></textarea>
+                                        </div>
                                     </div>
-                                    <div class="switch-item">
-                                        <span>Sala de Estudos</span>
-                                        <label class="switch">
-                                            <input type="checkbox" id="env-estudos-${index}">
-                                            <span class="slider"></span>
-                                        </label>
+
+                                    <!-- Sala de Estudos -->
+                                    <div class="switch-item" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <span style="font-weight: 600;">Sala de Estudos</span>
+                                            <label class="switch">
+                                                <input type="checkbox" id="env-estudos-${index}" onchange="toggleNotaAmbiente('env-estudos-${index}', 'box-estudos-${index}')">
+                                                <span class="slider"></span>
+                                            </label>
+                                        </div>
+                                        <div id="box-estudos-${index}" style="display: none; margin-top: 10px;">
+                                            <textarea id="note-estudos-${index}" placeholder="Anotações sobre a Sala de Estudos..." style="width: 100%; height: 60px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.85rem; font-family: inherit;"></textarea>
+                                        </div>
                                     </div>
-                                    <div class="switch-item">
-                                        <span>Laboratório de Informática</span>
-                                        <label class="switch">
-                                            <input type="checkbox" id="env-informatica-${index}">
-                                            <span class="slider"></span>
-                                        </label>
+
+                                    <!-- Laboratório de Informática -->
+                                    <div class="switch-item" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <span style="font-weight: 600;">Laboratório de Informática</span>
+                                            <label class="switch">
+                                                <input type="checkbox" id="env-informatica-${index}" onchange="toggleNotaAmbiente('env-informatica-${index}', 'box-informatica-${index}')">
+                                                <span class="slider"></span>
+                                            </label>
+                                        </div>
+                                        <div id="box-informatica-${index}" style="display: none; margin-top: 10px;">
+                                            <textarea id="note-informatica-${index}" placeholder="Anotações sobre o Lab. de Informática..." style="width: 100%; height: 60px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.85rem; font-family: inherit;"></textarea>
+                                        </div>
                                     </div>
-                                    <div class="switch-item">
-                                        <span>Laboratório Especializado</span>
-                                        <label class="switch">
-                                            <input type="checkbox" id="env-especializado-${index}">
-                                            <span class="slider"></span>
-                                        </label>
+
+                                    <!-- Laboratório Especializado -->
+                                    <div class="switch-item" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <span style="font-weight: 600;">Laboratório Especializado</span>
+                                            <label class="switch">
+                                                <input type="checkbox" id="env-especializado-${index}" onchange="toggleNotaAmbiente('env-especializado-${index}', 'box-especializado-${index}')">
+                                                <span class="slider"></span>
+                                            </label>
+                                        </div>
+                                        <div id="box-especializado-${index}" style="display: none; margin-top: 10px;">
+                                            <textarea id="note-especializado-${index}" placeholder="Anotações sobre o Lab. Especializado..." style="width: 100%; height: 60px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.85rem; font-family: inherit;"></textarea>
+                                        </div>
                                     </div>
+
+                                    <!-- Outros -->
+                                    <div class="switch-item" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <span style="font-weight: 600;">Outros</span>
+                                            <label class="switch">
+                                                <input type="checkbox" id="env-outros-${index}" onchange="toggleNotaAmbiente('env-outros-${index}', 'box-outros-${index}')">
+                                                <span class="slider"></span>
+                                            </label>
+                                        </div>
+                                        <div id="box-outros-${index}" style="display: none; margin-top: 10px;">
+                                            <textarea id="note-outros-${index}" placeholder="Anotações..." style="width: 100%; height: 60px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.85rem; font-family: inherit;"></textarea>
+                                        </div>
+                                    </div>
+
                                 </div>
                                 
                                 ${htmlCursos}
                                 
-                                <div class="details-footer" style="margin-top: 30px; border-top: 2px solid #e2e8f0; padding-top: 20px; display: flex; justify-content: flex-start;">
-                                    <button class="btn-save" onclick="salvarConfiguracaoDoPolo('${polo.Nome}', ${index})" style="padding: 12px 28px; font-size: 0.95rem; font-weight: 600; cursor: pointer;">
-                                        <i class="fa-solid fa-floppy-disk"></i> Salvar Alterações
-                                    </button>
-                                </div>
+                           <div class="details-footer" style="margin-top: 30px; border-top: 2px solid #e2e8f0; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+    
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <!-- Botão Limpar Dados (Vermelho) -->
+        <button class="btn-clear" onclick="limparDadosPolo(decodeURIComponent('${nomePoloEncoded}'), ${index})" style="padding: 12px 20px; font-size: 0.95rem; font-weight: 600; cursor: pointer; border-radius: 6px; background-color: #ef4444; color: white; border: none; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-trash-can"></i> Limpar Dados
+        </button>
+
+        <!-- Botão Salvar Alterações (Verde) -->
+        <button class="btn-save" onclick="salvarConfiguracaoDoPolo(decodeURIComponent('${nomePoloEncoded}'), ${index})" style="padding: 12px 28px; font-size: 0.95rem; font-weight: 600; cursor: pointer; border-radius: 6px; background-color: #10b981; color: white; border: none;">
+            <i class="fa-solid fa-floppy-disk"></i> Salvar Alterações
+        </button>
+
+        <span id="status-salvamento-${index}" style="display: none; align-items: center; gap: 8px; font-weight: 600; font-size: 0.9rem; color: #334155;"></span>
+    </div>
+    
+    <!-- Botão Agendar Visita (Azul) -->
+    <button class="btn-agenda-polo" onclick="agendarVisitaPolo(decodeURIComponent('${nomePoloEncoded}'))" style="padding: 12px 20px; background-color: #0284c7; color: white; border: none; border-radius: 6px; font-size: 0.95rem; font-weight: 600; cursor: pointer;">
+        <i class="fa-solid fa-calendar-plus"></i> Agendar Visita
+    </button>
+</div>
                             </div>
                         </div>
                     </td>
                 `;
 
-                tabelaBody.appendChild(mainRow);
-                tabelaBody.appendChild(detailRow);
-
+                // Evento para alternar exibição dos detalhes
                 mainRow.addEventListener('click', () => {
-                    const isOpen = (detailRow.style.display === 'table-row');
-                    const icon = mainRow.querySelector('.toggle-icon');
+                    const isVisible = detailRow.style.display !== 'none';
                     
-                    document.querySelectorAll('.detail-row').forEach(row => {
-                        if (row !== detailRow) {
-                            row.style.display = 'none';
-                            row.classList.remove('open');
-                        }
-                    });
-                    document.querySelectorAll('.polo-row').forEach(row => {
-                        if (row !== mainRow) {
-                            row.classList.remove('expanded');
-                            const otherIcon = row.querySelector('.toggle-icon');
-                            if (otherIcon) otherIcon.style.transform = 'rotate(0deg)';
-                        }
-                    });
-                    
-                    if (isOpen) {
-                        detailRow.style.display = 'none';
-                        detailRow.classList.remove('open');
-                        mainRow.classList.remove('expanded');
-                        if (icon) icon.style.transform = 'rotate(0deg)';
-                    } else {
+                    document.querySelectorAll('.detail-row').forEach(r => r.style.display = 'none');
+                    document.querySelectorAll('.toggle-icon').forEach(i => i.style.transform = 'rotate(0deg)');
+                    document.querySelectorAll('.polo-row').forEach(r => r.classList.remove('expanded'));
+
+                    if (!isVisible) {
                         detailRow.style.display = 'table-row';
-                        detailRow.classList.add('open');
                         mainRow.classList.add('expanded');
+                        const icon = document.getElementById(`toggle-icon-${index}`);
                         if (icon) icon.style.transform = 'rotate(90deg)';
-                        carregarDadosSalvosDoPolo(polo.Nome, index);
+                        carregarConfiguracaoDoPolo(polo.Nome, index);
                     }
                 });
+
+                tabelaBody.appendChild(mainRow);
+                tabelaBody.appendChild(detailRow);
             });
         }
     }
@@ -598,127 +672,364 @@ function filtrarEDesenhar() {
 
 
 // =========================================================================
-// 8. LOGICA DE PERSISTÊNCIA (LOCALSTORAGE)
+// 9. INDICADORES E PAINEL DE PERSISTÊNCIA (PERSISTÊNCIA & NAVEGAÇÃO)
 // =========================================================================
-function carregarDadosSalvosDoPolo(poloNome, index) {
-    const dadosSalvos = localStorage.getItem(`polo_data_${poloNome}`);
-    
-    const txtArea = document.getElementById(`notes-${index}`);
-    const recepcao = document.getElementById(`env-recepcao-${index}`);
-    const coordenacao = document.getElementById(`env-coordenacao-${index}`);
-    const estudos = document.getElementById(`env-estudos-${index}`);
-    const informatica = document.getElementById(`env-informatica-${index}`);
-    const especializado = document.getElementById(`env-especializado-${index}`);
 
-    if (dadosSalvos) {
-        const dados = JSON.parse(dadosSalvos);
-        if (txtArea) txtArea.value = dados.anotacoes || '';
-        if (recepcao) recepcao.checked = !!dados.recepcao;
-        if (coordenacao) coordenacao.checked = !!dados.coordenacao;
-        if (estudos) estudos.checked = !!dados.estudos;
-        if (informatica) informatica.checked = !!dados.informatica;
-        if (especializado) especializado.checked = !!dados.especializado;
-    } else {
-        if (txtArea) txtArea.value = '';
-        if (recepcao) recepcao.checked = false;
-        if (coordenacao) coordenacao.checked = false;
-        if (estudos) estudos.checked = false;
-        if (informatica) informatica.checked = false;
-        if (especializado) especializado.checked = false;
-    }
-}
+function atualizarIndicadores(dadosFiltrados) {
+    const total = dadosFiltrados.length;
+    let eadCount = 0;
+    let semiCount = 0;
 
-function salvarConfiguracaoDoPolo(poloNome, index) {
-    const anotacoes = document.getElementById(`notes-${index}`).value;
-    const recepcao = document.getElementById(`env-recepcao-${index}`).checked;
-    const coordenacao = document.getElementById(`env-coordenacao-${index}`).checked;
-    const estudos = document.getElementById(`env-estudos-${index}`).checked;
-    const informatica = document.getElementById(`env-informatica-${index}`).checked;
-    const especializado = document.getElementById(`env-especializado-${index}`).checked;
-
-    const dadosDoPolo = {
-        poloNome,
-        anotacoes,
-        recepcao,
-        coordenacao,
-        estudos,
-        informatica,
-        especializado
-    };
-
-    localStorage.setItem(`polo_data_${poloNome}`, JSON.stringify(dadosDoPolo));
-    atualizarIndicadores(database); 
-
-    const modeloCell = document.querySelector(`#polo-row-${index} td:last-child`);
-    if (modeloCell) {
-        const temTexto = anotacoes && anotacoes.trim() !== '';
-        const temAmbiente = recepcao || coordenacao || estudos || informatica || especializado;
-        let iconeExistente = modeloCell.querySelector('.item-visto-check');
-        
-        if (temTexto || temAmbiente) {
-            if (!iconeExistente) {
-                modeloCell.insertAdjacentHTML('beforeend', `<i class="fa-solid fa-circle-check item-visto-check" style="color: #10b981; font-size: 1.15rem; margin-left: auto;" title="Polo Concluído"></i>`);
-            }
-        } else {
-            if (iconeExistente) iconeExistente.remove();
-        }
-    }
-
-    const btn = document.querySelector(`#detail-row-${index} .btn-save`);
-    const originalText = btn.innerHTML;
-    btn.style.backgroundColor = '#eab308'; 
-    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Sincronizando Cloud...`;
-
-    fetch(WEB_APP_URL, {
-        method: 'POST',
-        mode: 'no-cors', 
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dadosDoPolo)
-    })
-    .then(() => {
-        btn.style.backgroundColor = '#10b981'; 
-        btn.innerHTML = `<i class="fa-solid fa-check"></i> Salvo na Nuvem!`;
-        setTimeout(() => {
-            btn.style.backgroundColor = '';
-            btn.innerHTML = originalText;
-        }, 2000);
-    })
-    .catch(error => {
-        console.error(error);
-        btn.style.backgroundColor = '#dc2626'; 
-        btn.innerHTML = `<i class="fa-solid fa-xmark"></i> Erro ao sincronizar`;
-        setTimeout(() => {
-            btn.style.backgroundColor = '';
-            btn.innerHTML = originalText;
-        }, 2000);
+    dadosFiltrados.forEach(p => {
+        if (p.Modelo === 'EAD') eadCount++;
+        else semiCount++;
     });
-}
-
-
-// =========================================================================
-// 9. ATUALIZAÇÃO DOS CARDS E BADGES DE MÉTRICAS
-// =========================================================================
-function atualizarIndicadores(listaFiltrada) {
-    const total = listaFiltrada.length;
-    const totalEad = listaFiltrada.filter(p => p.Modelo === 'EAD').length;
-    const totalSemi = listaFiltrada.filter(p => p.Modelo === 'Semipresencial').length;
-
-    const totalConcluidos = listaFiltrada.filter(polo => {
-        const dadosSalvos = localStorage.getItem(`polo_data_${polo.Nome}`);
-        if (dadosSalvos) {
-            const dados = JSON.parse(dadosSalvos);
-            const temTexto = dados.anotacoes && dados.anotacoes.trim() !== '';
-            const temAmbiente = dados.recepcao || dados.coordenacao || dados.estudos || dados.informatica || dados.especializado;
-            return temTexto || temAmbiente;
-        }
-        return false;
-    }).length;
 
     if (txtTotalPolos) txtTotalPolos.textContent = total;
-    if (txtTotalEad) txtTotalEad.textContent = totalEad;
-    if (txtTotalSemi) txtTotalSemi.textContent = totalSemi;
+    if (txtTotalEad) txtTotalEad.textContent = eadCount;
+    if (txtTotalSemi) txtTotalSemi.textContent = semiCount;
     if (txtBadgeTotal) txtBadgeTotal.textContent = total;
-    
-    const txtBadgeConcluidos = document.getElementById('txt-badge-concluidos');
-    if (txtBadgeConcluidos) txtBadgeConcluidos.textContent = totalConcluidos;
+
+    // Calcular concluídos no localStorage
+    let concluidos = 0;
+    database.forEach(p => {
+        const dados = localStorage.getItem(`polo_data_${p.Nome}`);
+        if (dados) {
+            const parsed = JSON.parse(dados);
+            const temTexto = parsed.anotacoes && parsed.anotacoes.trim() !== '';
+            const temAmb = parsed.recepcao || parsed.coordenacao || parsed.estudos || parsed.informatica || parsed.especializado || parsed.outros;
+            if (temTexto || temAmb) concluidos++;
+        }
+    });
+
+    if (txtBadgeConcluidos) txtBadgeConcluidos.textContent = concluidos;
 }
+
+function carregarConfiguracaoDoPolo(nomePolo, index) {
+    const dadosSalvos = localStorage.getItem(`polo_data_${nomePolo}`);
+    if (!dadosSalvos) return;
+
+    try {
+        const dados = JSON.parse(dadosSalvos);
+
+        const txtNotas = document.getElementById(`notes-${index}`);
+        if (txtNotas && dados.anotacoes) txtNotas.value = dados.anotacoes;
+
+        const ambientes = ['recepcao', 'coordenacao', 'estudos', 'informatica', 'especializado', 'outros'];
+        ambientes.forEach(amb => {
+            const chk = document.getElementById(`env-${amb}-${index}`);
+            const note = document.getElementById(`note-${amb}-${index}`);
+            
+            if (chk && dados[amb]) {
+                chk.checked = true;
+                toggleNotaAmbiente(`env-${amb}-${index}`, `box-${amb}-${index}`);
+                if (note && dados[`note_${amb}`]) {
+                    note.value = dados[`note_${amb}`];
+                }
+            }
+        });
+    } catch (e) {
+        console.error("Erro ao carregar dados salvos do polo:", e);
+    }
+}
+
+async function salvarConfiguracaoDoPolo(nomePolo, index) {
+    const btnSalvar = document.querySelector(`#detail-row-${index} .btn-save`);
+    const statusFeedback = document.getElementById(`status-salvamento-${index}`);
+
+    // Feedback visual inicial de sincronização
+    if (btnSalvar) btnSalvar.disabled = true;
+    if (statusFeedback) {
+        statusFeedback.style.display = 'inline-flex';
+        statusFeedback.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="color: #0284c7;"></i> Sincronizando com a nuvem...`;
+    }
+
+    const txtNotas = document.getElementById(`notes-${index}`);
+    
+    // Força a conversão em string para que o nome venha perfeito na nuvem
+    const poloNomeLimpo = String(nomePolo).trim();
+
+    const payload = {
+        polo: poloNomeLimpo,
+        anotacoes: txtNotas ? txtNotas.value : '',
+        recepcao: document.getElementById(`env-recepcao-${index}`)?.checked || false,
+        note_recepcao: document.getElementById(`note-recepcao-${index}`)?.value || '',
+        coordenacao: document.getElementById(`env-coordenacao-${index}`)?.checked || false,
+        note_coordenacao: document.getElementById(`note-coordenacao-${index}`)?.value || '',
+        estudos: document.getElementById(`env-estudos-${index}`)?.checked || false,
+        note_estudos: document.getElementById(`note-estudos-${index}`)?.value || '',
+        informatica: document.getElementById(`env-informatica-${index}`)?.checked || false,
+        note_informatica: document.getElementById(`note-informatica-${index}`)?.value || '',
+        especializado: document.getElementById(`env-especializado-${index}`)?.checked || false,
+        note_especializado: document.getElementById(`note-especializado-${index}`)?.value || '',
+        outros: document.getElementById(`env-outros-${index}`)?.checked || false,
+        note_outros: document.getElementById(`note-outros-${index}`)?.value || ''
+    };
+
+    // 1. Salva localmente
+    localStorage.setItem(`polo_data_${poloNomeLimpo}`, JSON.stringify(payload));
+
+    // 2. Envia para a API na Nuvem (Google Apps Script)
+    if (WEB_APP_URL && WEB_APP_URL !== '') {
+        try {
+            await fetch(WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload)
+            });
+        } catch (err) {
+            console.warn("Serviço remoto indisponível, salvo apenas no navegador.", err);
+        }
+    }
+
+    // Feedback visual final de sucesso
+    if (statusFeedback) {
+        statusFeedback.innerHTML = `<i class="fa-solid fa-cloud-check" style="color: #10b981;"></i> Salvo na nuvem!`;
+    }
+
+    if (btnSalvar) btnSalvar.disabled = false;
+
+    // Atualiza o ícone verde de polo concluído na linha da tabela sem fechar a linha
+    atualizarStatusCheckLinha(poloNomeLimpo, index);
+
+    // Esconde a mensagem visual após 4 segundos
+    setTimeout(() => {
+        if (statusFeedback) {
+            statusFeedback.style.display = 'none';
+        }
+    }, 4000);
+}
+
+function atualizarStatusCheckLinha(nomePolo, index) {
+    const mainRow = document.getElementById(`polo-row-${index}`);
+    if (!mainRow) return;
+
+    const tdBadge = mainRow.querySelector('td:last-child');
+    if (!tdBadge) return;
+
+    let checkIcon = tdBadge.querySelector('.item-visto-check');
+    if (!checkIcon) {
+        checkIcon = document.createElement('i');
+        checkIcon.className = 'fa-solid fa-circle-check item-visto-check';
+        checkIcon.style.cssText = 'color: #10b981; font-size: 1.15rem; margin-left: auto;';
+        checkIcon.title = 'Polo Concluído';
+        tdBadge.appendChild(checkIcon);
+    }
+
+    atualizarIndicadores(database);
+}
+
+function agendarVisitaPolo(nomePolo) {
+    const titulo = encodeURIComponent(`Visita ao Polo: ${nomePolo}`);
+    const detalhes = encodeURIComponent(`Visita técnica / alinhamento com o polo ${nomePolo}.`);
+    const googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${titulo}&details=${detalhes}`;
+    window.open(googleCalendarUrl, '_blank');
+}
+
+function abrirAgendaGlobal() {
+    window.open('https://calendar.google.com/', '_blank');
+}
+
+// ==========================================
+// FUNÇÃO PARA LIMPAR DADOS DA PLANILHA
+// ==========================================
+
+const SCRIPT_URL_PLANILHA = "https://script.google.com/macros/s/AKfycbyotjrDB9PBpOACksBkr0unfryAM9lmNofdlF4Jdw0SiCD-f9LsejcldS0tnZLRJyA7/exec"; // Lembre de colar sua URL /exec aqui
+
+window.limparDadosPolo = async function(nomePolo, index) {
+    if (!nomePolo) return;
+
+    // 1. Confirmação
+    const confirma = confirm(`Deseja realmente apagar todos os dados do polo:\n"${nomePolo}"?`);
+    if (!confirma) return;
+
+    // 2. Indicador de carregamento
+    const statusEl = document.getElementById(`status-salvamento-${index}`);
+    if (statusEl) {
+        statusEl.style.display = 'inline-flex';
+        statusEl.style.color = '#334155';
+        statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Limpando...';
+    }
+
+    // -------------------------------------------------------------
+    // ETAPA 1: ZERA A TELA NA MARRA (VISUALMENTE)
+    // -------------------------------------------------------------
+    // Localiza o container específico do card deste polo
+    const containerPolo = statusEl ? (statusEl.closest('.polo-card') || statusEl.closest('tr') || statusEl.closest('td') || statusEl.closest('div')) : null;
+    const escopo = containerPolo || document;
+
+    // Esvazia textareas do polo
+    escopo.querySelectorAll('textarea').forEach(ta => {
+        ta.value = '';
+        ta.textContent = '';
+        ta.innerText = '';
+        ta.dispatchEvent(new Event('input', { bubbles: true }));
+        ta.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    // Esvazia inputs de texto do polo
+    escopo.querySelectorAll('input[type="text"]').forEach(inp => {
+        inp.value = '';
+        inp.dispatchEvent(new Event('input', { bubbles: true }));
+        inp.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    // Desmarca switches do polo
+    escopo.querySelectorAll('input[type="checkbox"]').forEach(chk => {
+        chk.checked = false;
+        chk.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    // -------------------------------------------------------------
+    // ETAPA 2: RESETA A ESTRUTURA DE DADOS DO SEU SISTEMA
+    // -------------------------------------------------------------
+    // Se o sistema usa uma variável de estado/lista (ex: database ou listaPolos)
+    const listasParaBuscar = [
+        typeof database !== 'undefined' ? database : null,
+        typeof listaPolos !== 'undefined' ? listaPolos : null,
+        typeof polosData !== 'undefined' ? polosData : null
+    ];
+
+    listasParaBuscar.forEach(lista => {
+        if (Array.isArray(lista)) {
+            const poloObj = lista.find(p => 
+                (p.nome && String(p.nome).includes(nomePolo)) || 
+                (p.polo && String(p.polo).includes(nomePolo)) ||
+                (p.nomePolo && String(p.nomePolo).includes(nomePolo))
+            );
+
+            if (poloObj) {
+                // Esvazia todas as propriedades salvas
+                poloObj.anotacoes = "";
+                poloObj.observacoes = "";
+                poloObj.quadroAnotacoes = "";
+                poloObj.recepcao = false;
+                poloObj.coordenacao = false;
+                poloObj.estudos = false;
+                poloObj.informatica = false;
+                poloObj.especializado = false;
+                poloObj.outros = false;
+                poloObj.concluido = false;
+                poloObj.status = false;
+            }
+        }
+    });
+
+    // -------------------------------------------------------------
+    // ETAPA 3: RE-RENDERIZA O PAINEL E CONTADORES
+    // -------------------------------------------------------------
+    // Força a atualização dos contadores ("1 Concluídos" -> "0 Concluídos")
+    if (typeof atualizarIndicadores === 'function' && typeof database !== 'undefined') {
+        atualizarIndicadores(database);
+    }
+    if (typeof renderizarPolos === 'function' && typeof database !== 'undefined') {
+        renderizarPolos(database);
+    }
+
+    // Esconde badge verde e limpa apenas as chaves deste polo do localStorage
+    const badgeCheck = document.getElementById(`badge-status-${index}`);
+    if (badgeCheck) badgeCheck.style.display = 'none';
+
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && key.includes(nomePolo)) {
+            localStorage.removeItem(key);
+        }
+    }
+
+    // -------------------------------------------------------------
+    // ETAPA 4: DELETA A LINHA DA PLANILHA DO GOOGLE
+    // -------------------------------------------------------------
+    try {
+        await fetch(SCRIPT_URL_PLANILHA, {
+            method: "POST",
+            mode: "cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ action: "limpar", polo: nomePolo })
+        });
+
+        if (statusEl) {
+            statusEl.style.color = '#10b981';
+            statusEl.innerHTML = '<i class="fa-solid fa-check"></i> Dados e planilha limpos!';
+            setTimeout(() => { statusEl.style.display = 'none'; }, 1500);
+        }
+
+    } catch (error) {
+        console.error("Erro ao comunicar limpeza com a planilha:", error);
+        if (statusEl) statusEl.style.display = 'none';
+    }
+    // Função auxiliar para converter o vídeo em arquivo enviável (Base64)
+function converterParaBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+  });
+}
+
+// Função executada ao clicar no botão "Enviar Vídeo"
+async function enviarVideoAnexo(nomePolo, index) {
+  const inputVideo = document.getElementById(`input-video-${index}`);
+  const statusEl = document.getElementById(`status-video-${index}`);
+
+  if (!inputVideo || inputVideo.files.length === 0) {
+    alert("Por favor, selecione um arquivo de vídeo antes de enviar.");
+    return;
+  }
+
+  const file = inputVideo.files[0];
+
+  // Limite de segurança recomendável de ~50MB para envios Web
+  if (file.size > 50 * 1024 * 1024) {
+    alert("O arquivo é muito grande. Escolha um vídeo de até 50MB.");
+    return;
+  }
+
+  // Atualiza mensagem de status na tela
+  if (statusEl) {
+    statusEl.style.display = 'block';
+    statusEl.style.color = '#0284c7';
+    statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Criando pasta do polo e enviando vídeo... Aguarde!';
+  }
+
+  try {
+    const base64 = await converterParaBase64(file);
+
+    const payload = {
+      action: "upload_video",
+      polo: nomePolo,
+      nomeArquivo: `${nomePolo}_${file.name}`,
+      tipoMime: file.type,
+      arquivoBase64: base64
+    };
+
+    const response = await fetch(SCRIPT_URL_PLANILHA, {
+      method: "POST",
+      mode: "cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+
+    const resultado = await response.json();
+
+    if (resultado.status === "success") {
+      if (statusEl) {
+        statusEl.style.color = '#10b981';
+        statusEl.innerHTML = `✅ Vídeo enviado com sucesso na pasta do Polo! <a href="${resultado.videoUrl}" target="_blank" style="color: #0284c7; text-decoration: underline;">Ver no Drive</a>`;
+      }
+      inputVideo.value = ''; // Limpa o campo do arquivo
+    } else {
+      throw new Error(resultado.message || "Erro no envio");
+    }
+
+  } catch (error) {
+    console.error("Erro no upload do vídeo:", error);
+    if (statusEl) {
+      statusEl.style.color = '#ef4444';
+      statusEl.innerHTML = '❌ Ocorreu um erro ao enviar o vídeo. Tente novamente.';
+    }
+  }
+}
+};
