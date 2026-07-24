@@ -24,7 +24,7 @@ let listaTodosCursos = [];
 // =========================================================================
 async function carregarPolosConcluidos() {
   try {
-    const response = await fetch(WEB_APP_URL);
+    const response = await fetch('https://script.google.com/macros/s/AKfycbxH-7NvAu4PbBPBpEWd5UGCUApnpVlMiAeTLsZcoL_DOiF3MKDnuVidCPHzDZVsUgns/exec');
     const data = await response.json();
 
     if (data.status === "success" && data.polos) {
@@ -40,6 +40,7 @@ async function carregarPolosConcluidos() {
 
 // Dispara o carregamento assim que a página terminar de carregar o HTML
 document.addEventListener("DOMContentLoaded", carregarPolosConcluidos);
+
 
 // =========================================================================
 // 2. ELEMENTOS DO DOM (MAPEAMENTO)
