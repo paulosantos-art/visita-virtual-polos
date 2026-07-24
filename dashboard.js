@@ -9,6 +9,7 @@ const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/
 // Banco de dados em memória local para permitir filtros sem re-fazer fetch
 let DADOS_PLANILHA_ORIGINAL = [];
 let COLUNAS_INDICES = { nome: -1, regiao: -1, estado: -1 };
+let mapaLeafletInstancia = null; // Guarda referência do Leaflet para re-uso/destruição correta
 
 // Coordenadas geográficas dos estados para plotagem no mapa Leaflet
 const coordenadasEstados = {
@@ -34,7 +35,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Configura o botão de logout
     document.getElementById('btn-sair')?.addEventListener('click', () => {
-        window.location.href = 'login.html';
+        if (confirm("Deseja realmente sair do painel?")) {
+            window.location.href = 'login.html';
+        }
     });
 });
 
@@ -71,7 +74,7 @@ async function carregarDadosDashboard() {
         // Popula inteligentemente os seletores com base na carga inicial de dados
         atualizarFiltroRegioes();
         atualizarFiltroEstados();
-        atualizarFiltroModelos(); // Adicionado na carga inicial
+        atualizarFiltroModelos();
         montarCabecalhoTabela();
         processarEFiltarDados();
 
@@ -87,7 +90,6 @@ async function carregarDadosDashboard() {
 function configurarOuvintesFiltros() {
     // Quando alterar a Região
     document.getElementById('filtroRegiao')?.addEventListener('change', () => {
-        // Atualiza a lista de estados e modelos válidos para essa região
         atualizarFiltroEstados();
         atualizarFiltroModelos();
         processarEFiltarDados();
@@ -95,7 +97,6 @@ function configurarOuvintesFiltros() {
 
     // Quando alterar o Estado
     document.getElementById('filtroEstado')?.addEventListener('change', () => {
-        // Ajusta dinamicamente as regiões e modelos disponíveis para esse estado
         atualizarFiltroRegioes();
         atualizarFiltroModelos();
         processarEFiltarDados();
@@ -103,7 +104,6 @@ function configurarOuvintesFiltros() {
 
     // Quando mudar o Modelo de Oferta
     document.getElementById('filtroModelo')?.addEventListener('change', () => {
-        // Ajusta dinamicamente as regiões e estados disponíveis para esse modelo
         atualizarFiltroRegioes();
         atualizarFiltroEstados();
         processarEFiltarDados();
@@ -138,7 +138,6 @@ function atualizarFiltroRegioes() {
         const regiaoFormatada = mapearNomeRegiao(valorRegiao);
         const modeloOfertaDetectado = extrairModeloOferta(linha);
 
-        // Valida se a linha atende aos filtros cruzados atuais de Estado e Modelo
         const atendeEstado = estadoSelecionado === "" || estadoFormatadoUF === estadoSelecionado;
         const atendeModelo = verificarCompatibilidadeModelo(modeloSelecionado, modeloOfertaDetectado);
 
@@ -149,7 +148,6 @@ function atualizarFiltroRegioes() {
 
     regioesDisponiveis = [...new Set(regioesDisponiveis)].sort();
 
-    // Reconstrói o HTML do seletor de regiões dinamicamente
     filtroRegiao.innerHTML = '<option value="">Todas as Regiões</option>';
     regioesDisponiveis.forEach(regiao => {
         const option = document.createElement('option');
@@ -191,7 +189,6 @@ function atualizarFiltroEstados() {
         const regiaoFormatada = mapearNomeRegiao(valorRegiao);
         const modeloOfertaDetectado = extrairModeloOferta(linha);
 
-        // Valida se a linha atende aos filtros de Região e Modelo
         const atendeRegiao = regiaoSelecionada === "" || regiaoFormatada === regiaoSelecionada;
         const atendeModelo = verificarCompatibilidadeModelo(modeloSelecionado, modeloOfertaDetectado);
 
@@ -202,7 +199,6 @@ function atualizarFiltroEstados() {
 
     estadosDisponiveis = [...new Set(estadosDisponiveis)].sort();
 
-    // Reconstrói o HTML do seletor de estados dinamicamente
     filtroEstado.innerHTML = '<option value="">Todos os Estados</option>';
     estadosDisponiveis.forEach(uf => {
         const option = document.createElement('option');
@@ -244,7 +240,6 @@ function atualizarFiltroModelos() {
         const regiaoFormatada = mapearNomeRegiao(valorRegiao);
         const modeloOfertaDetectado = extrairModeloOferta(linha);
 
-        // Valida se atende à região e estado selecionados
         const atendeRegiao = regiaoSelecionada === "" || regiaoFormatada === regiaoSelecionada;
         const atendeEstado = estadoSelecionado === "" || estadoFormatadoUF === estadoSelecionado;
 
@@ -258,7 +253,6 @@ function atualizarFiltroModelos() {
         }
     }
 
-    // Reconstrói o HTML do seletor de Modelos de Oferta dinamicamente
     filtroModelo.innerHTML = '<option value="">Todos os Modelos de Oferta</option>';
     
     if (modelosDisponiveis.has("EAD")) {
@@ -274,7 +268,6 @@ function atualizarFiltroModelos() {
         filtroModelo.appendChild(option);
     }
 
-    // Re-seleciona o valor caso ele ainda seja uma opção válida
     if (modelosDisponiveis.has(modeloAtual)) {
         filtroModelo.value = modeloAtual;
     }
@@ -480,7 +473,10 @@ function csvParaArray(textoCsv) {
 // 14. MONTAGEM E REDESENHO DO GRÁFICO (CHART.JS)
 // ==========================================
 function inicializarGrafico(dados) {
-    const ctx = document.getElementById('graficoRegioes').getContext('2d');
+    const canvasElement = document.getElementById('graficoRegioes');
+    if (!canvasElement) return;
+
+    const ctx = canvasElement.getContext('2d');
     const regioesOrdenadas = Object.entries(dados).filter(([_, total]) => total > 0).sort((a, b) => b[1] - a[1]);
     
     const labels = regioesOrdenadas.map(item => item[0]);
@@ -517,14 +513,20 @@ function inicializarGrafico(dados) {
 // 15. PLOTAGEM E RENDERIZAÇÃO DOS PONTOS DO MAPA (LEAFLET)
 // ==========================================
 function inicializarMapa(dados) {
-    const container = L.DomUtil.get('mapaPolos');
-    if (container != null) { container._leaflet_id = null; }
+    const container = document.getElementById('mapaPolos');
+    if (!container) return;
 
-    const mapa = L.map('mapaPolos').setView([-14.235, -51.925], 4);
+    // Destruição segura do mapa para evitar erros e sombras de sobreposição
+    if (mapaLeafletInstancia !== null) {
+        mapaLeafletInstancia.remove();
+        mapaLeafletInstancia = null;
+    }
+
+    mapaLeafletInstancia = L.map('mapaPolos').setView([-14.235, -51.925], 4);
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         attribution: '© OpenStreetMap | © CartoDB'
-    }).addTo(mapa);
+    }).addTo(mapaLeafletInstancia);
 
     Object.keys(dados).forEach(uf => {
         const total = dados[uf];
@@ -540,7 +542,7 @@ function inicializarMapa(dados) {
                 weight: 2,
                 radius: raioProporcional
             })
-            .addTo(mapa)
+            .addTo(mapaLeafletInstancia)
             .bindPopup(`<div style="font-family: 'Inter', sans-serif; color: #1e293b;">
                             <b style="font-size: 14px;">Estado: ${uf}</b><br>
                             <span style="font-size: 13px; color: #10b981; font-weight: 600;">${total} Polos Ativos</span>
@@ -568,7 +570,7 @@ document.addEventListener('keydown', function(event) {
         // Redescreve as listas completas e limpa os gráficos
         atualizarFiltroRegioes();
         atualizarFiltroEstados();
-        atualizarFiltroModelos(); // Adicionado no reset
+        atualizarFiltroModelos();
         processarEFiltarDados();
     }
 });
