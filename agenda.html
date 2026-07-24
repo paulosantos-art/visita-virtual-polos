@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Agenda - Visita Virtual dos Polos</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Dependência do FullCalendar (Calendário Editável e Dinâmico) -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            min-height: 100vh;
+            background-color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .main-content {
+            flex: 1;
+            height: 100vh;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+
+        .main-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .brand-logo {
+            height: 48px;
+            width: auto;
+            object-fit: contain;
+            margin-left: 20px;
+        }
+
+        .analytics-card {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .analytics-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .calendar-section {
+            margin-top: 24px;
+            margin-bottom: 30px;
+        }
+
+        .calendar-responsive-container {
+            width: 100%;
+            background: #ffffff;
+            padding: 10px;
+            box-sizing: border-box;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            margin-top: 15px;
+        }
+
+        /* Customização do FullCalendar */
+        .fc {
+            font-family: 'Inter', sans-serif;
+        }
+        .fc .fc-button-primary {
+            background-color: #1e293b;
+            border-color: #1e293b;
+        }
+        .fc .fc-button-primary:hover {
+            background-color: #0f172a;
+            border-color: #0f172a;
+        }
+        .fc .fc-button-primary:disabled {
+            background-color: #64748b;
+            border-color: #64748b;
+        }
+        .fc .fc-daygrid-day.fc-day-today {
+            background-color: #f0fdf4 !important;
+        }
+        .fc-event {
+            background-color: #10b981 !important;
+            border: none !important;
+            padding: 3px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        @media (max-width: 640px) {
+            body { flex-direction: column; }
+            .sidebar { width: 100% !important; height: auto !important; }
+            .main-content { height: auto; }
+            .main-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+            .brand-logo { margin-left: 0; align-self: flex-end; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR FIXA (Esquerda) -->
+    <!-- SIDEBAR FIXA (Esquerda) - agenda.html -->
+    <aside class="sidebar">
+        <!-- Navegação Principal -->
+        <nav class="menu-links">
+            <div class="menu-header">
+                <i class="fa-solid fa-chart-pie"></i>
+                <span>Navegação</span>
+            </div>
+
+            <div class="menu-subtitle">Painéis</div>
+
+            <!-- Link para Lista de Polos -->
+            <a href="index.html" class="btn-nav">
+                <i class="fa-solid fa-hotel icon-blue"></i>
+                <span>Lista de Polos</span>
+            </a>
+
+            <!-- Aba Atual (Agenda) -->
+            <a href="agenda.html" class="btn-nav active">
+                <i class="fa-solid fa-calendar-days icon-blue"></i>
+                <span>Agenda de Visitas</span>
+            </a>
+
+            <!-- Link para Gráficos e Mapas -->
+            <a href="dashboard.html" class="btn-nav">
+                <i class="fa-solid fa-earth-americas icon-green"></i>
+                <span>Dashboard</span>
+            </a>
+        </nav>
+        
+        <!-- Rodapé da Sidebar: Links + Sair -->
+        <div class="sidebar-footer">
+            <div class="utility-links">
+                <a href="https://docs.google.com/spreadsheets/d/1_8l39f0R50RvmeFiSqd3_lXwWaVN_YipF-JHZe-hVEc/edit?gid=0#gid=0" 
+                   target="_blank" 
+                   rel="noopener noreferrer"
+                   class="btn-nav">
+                     <i class="fa-solid fa-table icon-green"></i>
+                     <span>Relatórios</span>
+                </a>
+            </div>
+
+            <hr class="sidebar-divider">
+
+            <button id="btn-sair" class="btn-sair">
+                <i class="fa-solid fa-right-from-bracket"></i> 
+                <span>Sair do Painel</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- CONTEÚDO PRINCIPAL (Direita) -->
+    <div class="main-content">
+        <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 30px 20px;">
+            
+            <header class="main-header">
+                <div class="logo-area" style="display: flex; align-items: center; gap: 15px;">
+                    <div class="icon-wrapper" style="background-color: #10b981; color: #ffffff; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                    </div>
+                    <div>
+                        <h1 style="margin: 0; color: #1e293b; font-size: 1.5rem; font-weight: 700;">Agenda de Visitas</h1>
+                        <p style="margin: 4px 0 0 0; color: #64748b; font-size: 0.9rem;"
+                    </div>
+                </div>
+                <img src="logo-unifecaf.png.png" alt="Logo UniFECAF" class="brand-logo">
+            </header>
+
+            <!-- CALENDÁRIO GOOGLE AGENDA INTERATIVO -->
+            <section class="analytics-card calendar-section">
+                <div class="analytics-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; width: 100%;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <i class="fa-solid fa-calendar-days" style="color: #38bdf8; font-size: 1.2rem;"></i>
+                        <h3 style="margin: 0; color: #1e293b; font-size: 1.1rem; font-weight: 600;">Cronograma de Visitas</h3>
+                    </div>
+                </div>
+                <div class="calendar-responsive-container">
+                    <div id="calendar-full"></div>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <!-- MODAL DE INTERAÇÃO DIRETA (ADICIONAR/EDITAR VISITAS) -->
+    <div id="modalEditor" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); font-family: 'Inter', sans-serif;">
+            <h4 id="modalTitulo" style="margin: 0 0 16px 0; color: #1e293b; font-size: 1.1rem; font-weight: 600;">Gerenciar Visita</h4>
+            
+            <input type="hidden" id="eventID">
+            
+            <label style="font-size: 12px; font-weight: 600; color: #64748b; display: block; margin-bottom: 6px;">NOME DO POLO / VISITA</label>
+            <input type="text" id="inputTitulo" placeholder="Ex: Polo Taboão - Visita Institucional" style="width: 100%; padding: 10px; margin-bottom: 16px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: inherit;">
+            
+            <label style="font-size: 12px; font-weight: 600; color: #64748b; display: block; margin-bottom: 6px;">DATA</label>
+            <input type="date" id="inputData" style="width: 100%; padding: 10px; margin-bottom: 20px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: inherit;">
+            
+            <div style="display: flex; gap: 10px; justify-content: space-between; align-items: center;">
+                <button id="btnExcluir" style="background: #ef4444; color: white; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-weight: 500; font-family: inherit; transition: background 0.2s;" onmouseover="this.style.backgroundColor='#dc2626'" onmouseout="this.style.backgroundColor='#ef4444'">Excluir</button>
+                <div style="display: flex; gap: 10px; margin-left: auto;">
+                    <button id="btnCancelar" style="background: #f1f5f9; color: #64748b; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-weight: 500; font-family: inherit;">Cancelar</button>
+                    <button id="btnSalvar" style="background: #10b981; color: white; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-weight: 600; font-family: inherit; transition: background 0.2s;" onmouseover="this.style.backgroundColor='#059669'" onmouseout="this.style.backgroundColor='#10b981'">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT EXTERNO (JavaScript isolado) -->
+    <script src="agenda.js"></script>
+</body>
+</html>
