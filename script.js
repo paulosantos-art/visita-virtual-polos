@@ -14,12 +14,32 @@ const SPREADSHEET_ID = '1km9rpUas9U3V4zqRqCp4AxxR_srUphtlckBuGRF7lqQ';
 
 const SPREADSHEET_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv`;
 const CURSOS_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=P%C3%A1gina1`;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyotjrDB9PBpOACksBkr0unfryAM9lmNofdlF4Jdw0SiCD-f9LsejcldS0tnZLRJyA7/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxH-7NvAu4PbBPBpEWd5UGCUApnpVlMiAeTLsZcoL_DOiF3MKDnuVidCPHzDZVsUgns/exec';
 
 let database = [];
 let baseCursosPolos = {}; 
 let listaTodosCursos = []; 
+// =========================================================================
+// 📥 FUNÇÃO DE LEITURA (Busca os polos concluídos ao abrir a página)
+// =========================================================================
+async function carregarPolosConcluidos() {
+  try {
+    const response = await fetch(WEB_APP_URL);
+    const data = await response.json();
 
+    if (data.status === "success" && data.polos) {
+      console.log("Polos gravados na planilha:", data.polos);
+      
+      // Aqui você pode associar os dados da planilha ao seu array 'database'
+      // ou disparar a renderização da tabela atualizada com os checks verdes (✔)
+    }
+  } catch (error) {
+    console.error("Erro ao carregar os polos concluídos:", error);
+  }
+}
+
+// Dispara o carregamento assim que a página terminar de carregar o HTML
+document.addEventListener("DOMContentLoaded", carregarPolosConcluidos);
 
 // =========================================================================
 // 2. ELEMENTOS DO DOM (MAPEAMENTO)
@@ -835,7 +855,7 @@ function abrirAgendaGlobal() {
 // FUNÇÃO PARA LIMPAR DADOS DA PLANILHA
 // ==========================================
 
-const SCRIPT_URL_PLANILHA = "https://script.google.com/macros/s/AKfycbyotjrDB9PBpOACksBkr0unfryAM9lmNofdlF4Jdw0SiCD-f9LsejcldS0tnZLRJyA7/exec"; // Lembre de colar sua URL /exec aqui
+const SCRIPT_URL_PLANILHA = "https://script.google.com/macros/s/AKfycbxH-7NvAu4PbBPBpEWd5UGCUApnpVlMiAeTLsZcoL_DOiF3MKDnuVidCPHzDZVsUgns/exec"; // Lembre de colar sua URL /exec aqui
 
 window.limparDadosPolo = async function(nomePolo, index) {
     if (!nomePolo) return;
@@ -942,7 +962,7 @@ window.limparDadosPolo = async function(nomePolo, index) {
     // ETAPA 4: DELETA A LINHA DA PLANILHA DO GOOGLE
     // -------------------------------------------------------------
     try {
-        await fetch(SCRIPT_URL_PLANILHA, {
+        await fetch('https://script.google.com/macros/s/AKfycbxH-7NvAu4PbBPBpEWd5UGCUApnpVlMiAeTLsZcoL_DOiF3MKDnuVidCPHzDZVsUgns/exec', {
             method: "POST",
             mode: "cors",
             headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -1004,8 +1024,7 @@ async function enviarVideoAnexo(nomePolo, index) {
       tipoMime: file.type,
       arquivoBase64: base64
     };
-
-    const response = await fetch(SCRIPT_URL_PLANILHA, {
+    const response = await fetch('https://script.google.com/macros/s/AKfycbxH-7NvAu4PbBPBpEWd5UGCUApnpVlMiAeTLsZcoL_DOiF3MKDnuVidCPHzDZVsUgns/exec', {
       method: "POST",
       mode: "cors",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -1032,4 +1051,42 @@ async function enviarVideoAnexo(nomePolo, index) {
     }
   }
 }
+async function salvarPolo(nomePolo, index) {
+  // Pega os elementos preenchidos
+  const anotacoes = document.getElementById(`anotacoes-${index}`)?.value || "";
+  const recepcao = document.getElementById(`recepcao-${index}`)?.checked || false;
+  const noteRecepcao = document.getElementById(`note-recepcao-${index}`)?.value || "";
+
+  const payload = {
+    polo: nomePolo,
+    anotacoes: anotacoes,
+    recepcao: recepcao,
+    note_recepcao: noteRecepcao,
+    status: "Concluído"
+  };
+
+  try {
+    const response = await fetch('https://script.google.com/macros/s/AKfycbxH-7NvAu4PbBPBpEWd5UGCUApnpVlMiAeTLsZcoL_DOiF3MKDnuVidCPHzDZVsUgns/exec', {
+      method: "POST",
+      mode: "cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+
+    const resultado = await response.json();
+
+    if (resultado.status === "success") {
+      alert("✅ Dados salvos com sucesso na planilha!");
+      carregarPolosConcluidos(); // Recarrega os status para atualizar o check verde na hora
+    } else {
+      alert("❌ Erro ao salvar: " + resultado.message);
+    }
+  } catch (error) {
+    console.error("Erro ao comunicar com o banco:", error);
+    alert("❌ Erro de conexão ao tentar salvar.");
+  }
+}
+
+// Vincula no window para o botão do HTML conseguir chamar no onclick
+window.salvarPolo = salvarPolo;
 };
