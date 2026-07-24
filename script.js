@@ -6,7 +6,6 @@ if (localStorage.getItem('painel_polos_logado') !== 'true') {
     window.location.href = 'login.html';
 }
 
-
 // =========================================================================
 // 1. CONFIGURAÇÃO DA PLANILHA (IDs e Links de Integração)
 // =========================================================================
@@ -19,6 +18,12 @@ const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxH-7NvAu4PbBPBpEWd
 let database = [];
 let baseCursosPolos = {}; 
 let listaTodosCursos = []; 
+
+// Variáveis de Paginação e Filtro de Concluídos
+let paginaAtual = 1;
+const itensPorPagina = 10;
+let apenasConcluidos = false;
+
 // =========================================================================
 // 📥 FUNÇÃO DE LEITURA (Busca os polos concluídos ao abrir a página)
 // =========================================================================
@@ -29,18 +34,13 @@ async function carregarPolosConcluidos() {
 
     if (data.status === "success" && data.polos) {
       console.log("Polos gravados na planilha:", data.polos);
-      
-      // Aqui você pode associar os dados da planilha ao seu array 'database'
-      // ou disparar a renderização da tabela atualizada com os checks verdes (✔)
     }
   } catch (error) {
     console.error("Erro ao carregar os polos concluídos:", error);
   }
 }
 
-// Dispara o carregamento assim que a página terminar de carregar o HTML
 document.addEventListener("DOMContentLoaded", carregarPolosConcluidos);
-
 
 // =========================================================================
 // 2. ELEMENTOS DO DOM (MAPEAMENTO)
@@ -61,7 +61,6 @@ const btnAgenda = document.getElementById('btn-agenda');
 const txtBadgeConcluidos = document.getElementById('txt-badge-concluidos');
 const btnSair = document.getElementById('btn-sair'); 
 
-
 // =========================================================================
 // 3. INICIALIZAÇÃO DO PAINEL
 // =========================================================================
@@ -69,21 +68,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     await carregarCursosDaPlanilha();
     await carregarDadosDaPlanilha();
 
-    if (inputBusca) inputBusca.addEventListener('input', filtrarEDesenhar);
+    const resetPageAndFilter = () => { paginaAtual = 1; filtrarEDesenhar(); };
+
+    if (inputBusca) inputBusca.addEventListener('input', resetPageAndFilter);
     if (btnSair) btnSair.addEventListener('click', efetuarLogout);
     
-    // --- LÓGICA DE FILTROS INTELIGENTES CRUZADOS ---
+    // Configura o Botão de Concluídos
+    if (txtBadgeConcluidos) {
+        txtBadgeConcluidos.style.cursor = 'pointer';
+        txtBadgeConcluidos.title = 'Clique para filtrar apenas os polos concluídos';
+        txtBadgeConcluidos.addEventListener('click', () => {
+            apenasConcluidos = !apenasConcluidos;
+            
+            // Destaque visual quando ativo
+            if (apenasConcluidos) {
+                txtBadgeConcluidos.style.outline = '2px solid #10b981';
+                txtBadgeConcluidos.style.boxShadow = '0 0 8px rgba(16, 185, 129, 0.4)';
+            } else {
+                txtBadgeConcluidos.style.outline = 'none';
+                txtBadgeConcluidos.style.boxShadow = 'none';
+            }
+            
+            resetPageAndFilter();
+        });
+    }
+
     if (selectRegiao) {
         selectRegiao.addEventListener('change', () => {
             popularEstadosBaseadoEmRegiao(); 
-            filtrarEDesenhar();
+            resetPageAndFilter();
         });
     }
     
     if (selectEstado) {
         selectEstado.addEventListener('change', () => {
             ajustarRegiaoBaseadoEmEstado();
-            filtrarEDesenhar();
+            resetPageAndFilter();
         });
     }
 
@@ -91,13 +111,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         btnAgenda.addEventListener('click', abrirAgendaGlobal);
     }
     
-    if (selectModelo) selectModelo.addEventListener('change', filtrarEDesenhar);
-    if (selectCurso) selectCurso.addEventListener('change', filtrarEDesenhar); 
+    if (selectModelo) selectModelo.addEventListener('change', resetPageAndFilter);
+    if (selectCurso) selectCurso.addEventListener('change', resetPageAndFilter); 
 
-    // Tecla ESC limpa tudo voltando para os padrões do HTML
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' || event.key === 'Esc') {
-            if (document.activeElement.tagName === 'TEXTAREA') return; // Evita limpar enquanto digita nota
+            if (document.activeElement.tagName === 'TEXTAREA') return;
             
             if (inputBusca) inputBusca.value = '';
             if (selectRegiao) selectRegiao.selectedIndex = 0;
@@ -105,19 +124,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (selectEstado) selectEstado.selectedIndex = 0;
             if (selectModelo) selectModelo.selectedIndex = 0;
             if (selectCurso) selectCurso.selectedIndex = 0; 
+            
+            // Reset do filtro de concluídos no ESC
+            apenasConcluidos = false;
+            if (txtBadgeConcluidos) {
+                txtBadgeConcluidos.style.outline = 'none';
+                txtBadgeConcluidos.style.boxShadow = 'none';
+            }
+
             document.querySelectorAll('.detail-row').forEach(row => row.style.display = 'none');
             document.querySelectorAll('.polo-row').forEach(row => row.classList.remove('expanded'));
-            filtrarEDesenhar();
+            resetPageAndFilter();
         }
     });     
 });
-
 
 function efetuarLogout() {
     localStorage.removeItem('painel_polos_logado');
     window.location.href = 'login.html';
 }
-
 
 // =========================================================================
 // 4. PROCESSAR CURSOS
@@ -201,7 +226,6 @@ function processarLinhasCSV(text) {
     }
     return lines;
 }
-
 
 // =========================================================================
 // 5. LEITURA E TRATAMENTO DA PLANILHA (POLOS)
@@ -323,7 +347,6 @@ function processarCsvProfissional(text) {
     return parsedData;
 }
 
-
 // =========================================================================
 // 6. MOTOR DO FILTRO INTELIGENTE E DEPENDÊNCIAS CRUZADAS
 // =========================================================================
@@ -381,7 +404,6 @@ function popularEstadosBaseadoEmRegiao() {
     }
 }
 
-
 // =========================================================================
 // 7. FUNÇÃO DE ALTERNÂNCIA (TOGGLE) PARA CAIXA DE TEXTO DOS AMBIENTES
 // =========================================================================
@@ -400,9 +422,8 @@ function toggleNotaAmbiente(checkboxId, boxId) {
     }
 }
 
-
 // =========================================================================
-// 8. FILTRAGEM, RENDERIZAÇÃO DA TABELA E DETALHES
+// 8. FILTRAGEM, RENDERIZAÇÃO DA TABELA, DETALHES E PAGINAÇÃO
 // =========================================================================
 function filtrarEDesenhar() {
     const busca = inputBusca ? inputBusca.value.toLowerCase().trim() : '';
@@ -412,6 +433,19 @@ function filtrarEDesenhar() {
     const cursoSelecionado = selectCurso ? selectCurso.value : 'TODOS'; 
 
     const dadosFiltrados = database.filter(polo => {
+        // Validação de Polo Concluído (Se o filtro estiver ligado)
+        if (apenasConcluidos) {
+            const dadosSalvos = localStorage.getItem(`polo_data_${polo.Nome}`);
+            let isConcluido = false;
+            if (dadosSalvos) {
+                const parsed = JSON.parse(dadosSalvos);
+                const temTexto = parsed.anotacoes && parsed.anotacoes.trim() !== '';
+                const temAmbiente = parsed.recepcao || parsed.coordenacao || parsed.estudos || parsed.informatica || parsed.especializado || parsed.outros;
+                isConcluido = temTexto || temAmbiente;
+            }
+            if (!isConcluido) return false;
+        }
+
         const atendeBusca = polo.Nome.toLowerCase().includes(busca);
         const atendeRegiao = (regiao === 'TODAS' || regiao.includes('Todas') || polo.Regiao === regiao);
         const atendeEstado = (estado === 'TODOS' || estado.includes('Todos') || polo.Estado === estado);
@@ -442,10 +476,17 @@ function filtrarEDesenhar() {
         
         if (dadosFiltrados.length === 0) {
             if (noResultsDiv) noResultsDiv.classList.remove('hidden');
+            renderizarPaginacao(0);
         } else {
             if (noResultsDiv) noResultsDiv.classList.add('hidden');
             
-            dadosFiltrados.forEach((polo, index) => {
+            // --- CORTE PARA PAGINAÇÃO (10 POR PÁGINA) ---
+            const inicio = (paginaAtual - 1) * itensPorPagina;
+            const fim = inicio + itensPorPagina;
+            const polosPaginados = dadosFiltrados.slice(inicio, fim);
+
+            polosPaginados.forEach((polo, indexOffset) => {
+                const index = inicio + indexOffset; // Garante IDs únicos
                 const badgeClass = polo.Modelo === 'EAD' ? 'badge-ead' : 'badge-semi';
                 const coursesOfPolo = baseCursosPolos[polo.Nome] || null;
                 let htmlCursos = "";
@@ -467,26 +508,11 @@ function filtrarEDesenhar() {
                         let badgeBorder = '#e2e8f0';   
 
                         if (statusUpper.includes("SEMI")) {
-                            bgColor = '#f0fdf4';
-                            borderColor = '#bbf7d0';
-                            textColor = '#14532d';
-                            badgeBg = '#dcfce7';
-                            badgeText = '#15803d';
-                            badgeBorder = '#bbf7d0';
+                            bgColor = '#f0fdf4'; borderColor = '#bbf7d0'; textColor = '#14532d'; badgeBg = '#dcfce7'; badgeText = '#15803d'; badgeBorder = '#bbf7d0';
                         } else if (statusUpper.includes("EAD")) {
-                            bgColor = '#eff6ff';
-                            borderColor = '#bfdbfe';
-                            textColor = '#1e3a8a';
-                            badgeBg = '#dbeafe';
-                            badgeText = '#1d4ed8';
-                            badgeBorder = '#bfdbfe';
+                            bgColor = '#eff6ff'; borderColor = '#bfdbfe'; textColor = '#1e3a8a'; badgeBg = '#dbeafe'; badgeText = '#1d4ed8'; badgeBorder = '#bfdbfe';
                         } else if (statusUpper.includes("SEM OFERTA")) {
-                            bgColor = '#fef2f2';
-                            borderColor = '#fca5a5';
-                            textColor = '#7f1d1d';
-                            badgeBg = '#fee2e2';
-                            badgeText = '#b91c1c';
-                            badgeBorder = '#fca5a5';
+                            bgColor = '#fef2f2'; borderColor = '#fca5a5'; textColor = '#7f1d1d'; badgeBg = '#fee2e2'; badgeText = '#b91c1c'; badgeBorder = '#fca5a5';
                         }
 
                         const destaqueFiltro = (nomeCurso === cursoSelecionado) ? 'box-shadow: 0 0 0 3px #2563eb;' : '';
@@ -539,7 +565,6 @@ function filtrarEDesenhar() {
                 detailRow.id = `detail-row-${index}`;
                 detailRow.style.display = 'none'; 
                 
-                // Tratamento seguro de aspas no nome do polo
                 const nomePoloEncoded = encodeURIComponent(polo.Nome);
 
                 detailRow.innerHTML = `
@@ -553,7 +578,6 @@ function filtrarEDesenhar() {
                                 <h3 class="details-title">Ambientes do Polo (Selecione se houver)</h3>
                                 <div class="switches-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px;">
                                     
-                                    <!-- Recepção -->
                                     <div class="switch-item" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px;">
                                         <div style="display: flex; justify-content: space-between; align-items: center;">
                                             <span style="font-weight: 600;">Recepção</span>
@@ -567,7 +591,6 @@ function filtrarEDesenhar() {
                                         </div>
                                     </div>
 
-                                    <!-- Sala de Coordenação -->
                                     <div class="switch-item" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px;">
                                         <div style="display: flex; justify-content: space-between; align-items: center;">
                                             <span style="font-weight: 600;">Sala de Coordenação</span>
@@ -581,7 +604,6 @@ function filtrarEDesenhar() {
                                         </div>
                                     </div>
 
-                                    <!-- Sala de Estudos -->
                                     <div class="switch-item" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px;">
                                         <div style="display: flex; justify-content: space-between; align-items: center;">
                                             <span style="font-weight: 600;">Sala de Estudos</span>
@@ -595,7 +617,6 @@ function filtrarEDesenhar() {
                                         </div>
                                     </div>
 
-                                    <!-- Laboratório de Informática -->
                                     <div class="switch-item" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px;">
                                         <div style="display: flex; justify-content: space-between; align-items: center;">
                                             <span style="font-weight: 600;">Laboratório de Informática</span>
@@ -609,7 +630,6 @@ function filtrarEDesenhar() {
                                         </div>
                                     </div>
 
-                                    <!-- Laboratório Especializado -->
                                     <div class="switch-item" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px;">
                                         <div style="display: flex; justify-content: space-between; align-items: center;">
                                             <span style="font-weight: 600;">Laboratório Especializado</span>
@@ -623,7 +643,6 @@ function filtrarEDesenhar() {
                                         </div>
                                     </div>
 
-                                    <!-- Outros -->
                                     <div class="switch-item" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px;">
                                         <div style="display: flex; justify-content: space-between; align-items: center;">
                                             <span style="font-weight: 600;">Outros</span>
@@ -641,33 +660,28 @@ function filtrarEDesenhar() {
                                 
                                 ${htmlCursos}
                                 
-                           <div class="details-footer" style="margin-top: 30px; border-top: 2px solid #e2e8f0; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
-    
-    <div style="display: flex; align-items: center; gap: 15px;">
-        <!-- Botão Limpar Dados (Vermelho) -->
-        <button class="btn-clear" onclick="limparDadosPolo(decodeURIComponent('${nomePoloEncoded}'), ${index})" style="padding: 12px 20px; font-size: 0.95rem; font-weight: 600; cursor: pointer; border-radius: 6px; background-color: #ef4444; color: white; border: none; display: flex; align-items: center; gap: 8px;">
-            <i class="fa-solid fa-trash-can"></i> Limpar Dados
-        </button>
+                                <div class="details-footer" style="margin-top: 30px; border-top: 2px solid #e2e8f0; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                                    <div style="display: flex; align-items: center; gap: 15px;">
+                                        <button class="btn-clear" onclick="limparDadosPolo(decodeURIComponent('${nomePoloEncoded}'), ${index})" style="padding: 12px 20px; font-size: 0.95rem; font-weight: 600; cursor: pointer; border-radius: 6px; background-color: #ef4444; color: white; border: none; display: flex; align-items: center; gap: 8px;">
+                                            <i class="fa-solid fa-trash-can"></i> Limpar Dados
+                                        </button>
 
-        <!-- Botão Salvar Alterações (Verde) -->
-        <button class="btn-save" onclick="salvarConfiguracaoDoPolo(decodeURIComponent('${nomePoloEncoded}'), ${index})" style="padding: 12px 28px; font-size: 0.95rem; font-weight: 600; cursor: pointer; border-radius: 6px; background-color: #10b981; color: white; border: none;">
-            <i class="fa-solid fa-floppy-disk"></i> Salvar Alterações
-        </button>
+                                        <button class="btn-save" onclick="salvarConfiguracaoDoPolo(decodeURIComponent('${nomePoloEncoded}'), ${index})" style="padding: 12px 28px; font-size: 0.95rem; font-weight: 600; cursor: pointer; border-radius: 6px; background-color: #10b981; color: white; border: none;">
+                                            <i class="fa-solid fa-floppy-disk"></i> Salvar Alterações
+                                        </button>
 
-        <span id="status-salvamento-${index}" style="display: none; align-items: center; gap: 8px; font-weight: 600; font-size: 0.9rem; color: #334155;"></span>
-    </div>
-    
-    <!-- Botão Agendar Visita (Azul) -->
-    <button class="btn-agenda-polo" onclick="agendarVisitaPolo(decodeURIComponent('${nomePoloEncoded}'))" style="padding: 12px 20px; background-color: #0284c7; color: white; border: none; border-radius: 6px; font-size: 0.95rem; font-weight: 600; cursor: pointer;">
-        <i class="fa-solid fa-calendar-plus"></i> Agendar Visita
-    </button>
-</div>
+                                        <span id="status-salvamento-${index}" style="display: none; align-items: center; gap: 8px; font-weight: 600; font-size: 0.9rem; color: #334155;"></span>
+                                    </div>
+                                    
+                                    <button class="btn-agenda-polo" onclick="agendarVisitaPolo(decodeURIComponent('${nomePoloEncoded}'))" style="padding: 12px 20px; background-color: #0284c7; color: white; border: none; border-radius: 6px; font-size: 0.95rem; font-weight: 600; cursor: pointer;">
+                                        <i class="fa-solid fa-calendar-plus"></i> Agendar Visita
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </td>
                 `;
 
-                // Evento para alternar exibição dos detalhes
                 mainRow.addEventListener('click', () => {
                     const isVisible = detailRow.style.display !== 'none';
                     
@@ -687,13 +701,61 @@ function filtrarEDesenhar() {
                 tabelaBody.appendChild(mainRow);
                 tabelaBody.appendChild(detailRow);
             });
+
+            renderizarPaginacao(dadosFiltrados.length);
         }
     }
 }
 
+// ==========================================
+// DESENHA OS BOTÕES DE NAVEGAÇÃO DE PÁGINAS
+// ==========================================
+function renderizarPaginacao(totalItens) {
+    let container = document.getElementById('paginacao-container');
+    
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'paginacao-container';
+        container.style.cssText = 'display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px; margin-bottom: 20px; font-weight: 600;';
+        const tabela = document.querySelector('table') || (tabelaBody ? tabelaBody.parentElement : null);
+        if (tabela) tabela.parentElement.appendChild(container);
+    }
+
+    const totalPaginas = Math.ceil(totalItens / itensPorPagina);
+    if (totalPaginas <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+
+    container.innerHTML = `
+        <button id="btn-ant" style="padding: 8px 16px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; font-weight:600;" ${paginaAtual === 1 ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>
+            <i class="fa-solid fa-chevron-left"></i> Anterior
+        </button>
+        <span style="font-size: 0.95rem; color: #475569;">Página ${paginaAtual} de ${totalPaginas}</span>
+        <button id="btn-prox" style="padding: 8px 16px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; font-weight:600;" ${paginaAtual === totalPaginas ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>
+            Próximo <i class="fa-solid fa-chevron-right"></i>
+        </button>
+    `;
+
+    document.getElementById('btn-ant')?.addEventListener('click', () => {
+        if (paginaAtual > 1) {
+            paginaAtual--;
+            filtrarEDesenhar();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    });
+
+    document.getElementById('btn-prox')?.addEventListener('click', () => {
+        if (paginaAtual < totalPaginas) {
+            paginaAtual++;
+            filtrarEDesenhar();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    });
+}
 
 // =========================================================================
-// 9. INDICADORES E PAINEL DE PERSISTÊNCIA (PERSISTÊNCIA & NAVEGAÇÃO)
+// 9. INDICADORES E PAINEL DE PERSISTÊNCIA
 // =========================================================================
 
 function atualizarIndicadores(dadosFiltrados) {
@@ -711,7 +773,6 @@ function atualizarIndicadores(dadosFiltrados) {
     if (txtTotalSemi) txtTotalSemi.textContent = semiCount;
     if (txtBadgeTotal) txtBadgeTotal.textContent = total;
 
-    // Calcular concluídos no localStorage
     let concluidos = 0;
     database.forEach(p => {
         const dados = localStorage.getItem(`polo_data_${p.Nome}`);
@@ -723,7 +784,10 @@ function atualizarIndicadores(dadosFiltrados) {
         }
     });
 
-    if (txtBadgeConcluidos) txtBadgeConcluidos.textContent = concluidos;
+    if (txtBadgeConcluidos) {
+        // Exibe apenas a quantidade (para evitar repetição com o HTML estático)
+        txtBadgeConcluidos.textContent = `${concluidos} Concluídos`;
+    }
 }
 
 function carregarConfiguracaoDoPolo(nomePolo, index) {
@@ -758,7 +822,6 @@ async function salvarConfiguracaoDoPolo(nomePolo, index) {
     const btnSalvar = document.querySelector(`#detail-row-${index} .btn-save`);
     const statusFeedback = document.getElementById(`status-salvamento-${index}`);
 
-    // Feedback visual inicial de sincronização
     if (btnSalvar) btnSalvar.disabled = true;
     if (statusFeedback) {
         statusFeedback.style.display = 'inline-flex';
@@ -766,8 +829,6 @@ async function salvarConfiguracaoDoPolo(nomePolo, index) {
     }
 
     const txtNotas = document.getElementById(`notes-${index}`);
-    
-    // Força a conversão em string para que o nome venha perfeito na nuvem
     const poloNomeLimpo = String(nomePolo).trim();
 
     const payload = {
@@ -787,13 +848,11 @@ async function salvarConfiguracaoDoPolo(nomePolo, index) {
         note_outros: document.getElementById(`note-outros-${index}`)?.value || ''
     };
 
-    // 1. Salva localmente
     localStorage.setItem(`polo_data_${poloNomeLimpo}`, JSON.stringify(payload));
 
-    // 2. Envia para a API na Nuvem (Google Apps Script)
     if (WEB_APP_URL && WEB_APP_URL !== '') {
         try {
-            await fetch(WEB_APP_URL, {
+            await fetch('https://script.google.com/macros/s/AKfycbxH-7NvAu4PbBPBpEWd5UGCUApnpVlMiAeTLsZcoL_DOiF3MKDnuVidCPHzDZVsUgns/exec', {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -804,17 +863,13 @@ async function salvarConfiguracaoDoPolo(nomePolo, index) {
         }
     }
 
-    // Feedback visual final de sucesso
     if (statusFeedback) {
         statusFeedback.innerHTML = `<i class="fa-solid fa-cloud-check" style="color: #10b981;"></i> Salvo na nuvem!`;
     }
 
     if (btnSalvar) btnSalvar.disabled = false;
-
-    // Atualiza o ícone verde de polo concluído na linha da tabela sem fechar a linha
     atualizarStatusCheckLinha(poloNomeLimpo, index);
 
-    // Esconde a mensagem visual após 4 segundos
     setTimeout(() => {
         if (statusFeedback) {
             statusFeedback.style.display = 'none';
@@ -853,19 +908,26 @@ function abrirAgendaGlobal() {
 }
 
 // ==========================================
-// FUNÇÃO PARA LIMPAR DADOS DA PLANILHA
+// FUNÇÃO PARA LIMPAR DADOS (MODAL SWEETALERT2)
 // ==========================================
-
-const SCRIPT_URL_PLANILHA = "https://script.google.com/macros/s/AKfycbxH-7NvAu4PbBPBpEWd5UGCUApnpVlMiAeTLsZcoL_DOiF3MKDnuVidCPHzDZVsUgns/exec"; // Lembre de colar sua URL /exec aqui
-
 window.limparDadosPolo = async function(nomePolo, index) {
     if (!nomePolo) return;
 
-    // 1. Confirmação
-    const confirma = confirm(`Deseja realmente apagar todos os dados do polo:\n"${nomePolo}"?`);
-    if (!confirma) return;
+    // Modal de Confirmação Moderno e Estilizado
+    const result = await Swal.fire({
+        title: 'Confirma que quer excluir?',
+        text: `Você está prestes a apagar todos os dados registrados do polo "${nomePolo}". Esta ação não poderá ser desfeita.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: '<i class="fa-solid fa-trash-can"></i> Sim, excluir!',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
+    });
 
-    // 2. Indicador de carregamento
+    if (!result.isConfirmed) return;
+
     const statusEl = document.getElementById(`status-salvamento-${index}`);
     if (statusEl) {
         statusEl.style.display = 'inline-flex';
@@ -873,84 +935,23 @@ window.limparDadosPolo = async function(nomePolo, index) {
         statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Limpando...';
     }
 
-    // -------------------------------------------------------------
-    // ETAPA 1: ZERA A TELA NA MARRA (VISUALMENTE)
-    // -------------------------------------------------------------
-    // Localiza o container específico do card deste polo
     const containerPolo = statusEl ? (statusEl.closest('.polo-card') || statusEl.closest('tr') || statusEl.closest('td') || statusEl.closest('div')) : null;
     const escopo = containerPolo || document;
 
-    // Esvazia textareas do polo
     escopo.querySelectorAll('textarea').forEach(ta => {
         ta.value = '';
-        ta.textContent = '';
-        ta.innerText = '';
         ta.dispatchEvent(new Event('input', { bubbles: true }));
-        ta.dispatchEvent(new Event('change', { bubbles: true }));
     });
 
-    // Esvazia inputs de texto do polo
     escopo.querySelectorAll('input[type="text"]').forEach(inp => {
         inp.value = '';
         inp.dispatchEvent(new Event('input', { bubbles: true }));
-        inp.dispatchEvent(new Event('change', { bubbles: true }));
     });
 
-    // Desmarca switches do polo
     escopo.querySelectorAll('input[type="checkbox"]').forEach(chk => {
         chk.checked = false;
         chk.dispatchEvent(new Event('change', { bubbles: true }));
     });
-
-    // -------------------------------------------------------------
-    // ETAPA 2: RESETA A ESTRUTURA DE DADOS DO SEU SISTEMA
-    // -------------------------------------------------------------
-    // Se o sistema usa uma variável de estado/lista (ex: database ou listaPolos)
-    const listasParaBuscar = [
-        typeof database !== 'undefined' ? database : null,
-        typeof listaPolos !== 'undefined' ? listaPolos : null,
-        typeof polosData !== 'undefined' ? polosData : null
-    ];
-
-    listasParaBuscar.forEach(lista => {
-        if (Array.isArray(lista)) {
-            const poloObj = lista.find(p => 
-                (p.nome && String(p.nome).includes(nomePolo)) || 
-                (p.polo && String(p.polo).includes(nomePolo)) ||
-                (p.nomePolo && String(p.nomePolo).includes(nomePolo))
-            );
-
-            if (poloObj) {
-                // Esvazia todas as propriedades salvas
-                poloObj.anotacoes = "";
-                poloObj.observacoes = "";
-                poloObj.quadroAnotacoes = "";
-                poloObj.recepcao = false;
-                poloObj.coordenacao = false;
-                poloObj.estudos = false;
-                poloObj.informatica = false;
-                poloObj.especializado = false;
-                poloObj.outros = false;
-                poloObj.concluido = false;
-                poloObj.status = false;
-            }
-        }
-    });
-
-    // -------------------------------------------------------------
-    // ETAPA 3: RE-RENDERIZA O PAINEL E CONTADORES
-    // -------------------------------------------------------------
-    // Força a atualização dos contadores ("1 Concluídos" -> "0 Concluídos")
-    if (typeof atualizarIndicadores === 'function' && typeof database !== 'undefined') {
-        atualizarIndicadores(database);
-    }
-    if (typeof renderizarPolos === 'function' && typeof database !== 'undefined') {
-        renderizarPolos(database);
-    }
-
-    // Esconde badge verde e limpa apenas as chaves deste polo do localStorage
-    const badgeCheck = document.getElementById(`badge-status-${index}`);
-    if (badgeCheck) badgeCheck.style.display = 'none';
 
     for (let i = localStorage.length - 1; i >= 0; i--) {
         const key = localStorage.key(i);
@@ -959,9 +960,8 @@ window.limparDadosPolo = async function(nomePolo, index) {
         }
     }
 
-    // -------------------------------------------------------------
-    // ETAPA 4: DELETA A LINHA DA PLANILHA DO GOOGLE
-    // -------------------------------------------------------------
+    filtrarEDesenhar();
+
     try {
         await fetch('https://script.google.com/macros/s/AKfycbxH-7NvAu4PbBPBpEWd5UGCUApnpVlMiAeTLsZcoL_DOiF3MKDnuVidCPHzDZVsUgns/exec', {
             method: "POST",
@@ -970,17 +970,25 @@ window.limparDadosPolo = async function(nomePolo, index) {
             body: JSON.stringify({ action: "limpar", polo: nomePolo })
         });
 
-        if (statusEl) {
-            statusEl.style.color = '#10b981';
-            statusEl.innerHTML = '<i class="fa-solid fa-check"></i> Dados e planilha limpos!';
-            setTimeout(() => { statusEl.style.display = 'none'; }, 1500);
-        }
+        Swal.fire({
+            title: 'Excluído!',
+            text: 'Os dados do polo foram apagados com sucesso.',
+            icon: 'success',
+            timer: 2000,
+            showConfirmButton: false
+        });
 
     } catch (error) {
         console.error("Erro ao comunicar limpeza com a planilha:", error);
-        if (statusEl) statusEl.style.display = 'none';
+        Swal.fire({
+            title: 'Erro!',
+            text: 'Ocorreu um erro ao tentar limpar os dados na planilha.',
+            icon: 'error',
+            confirmButtonColor: '#0284c7'
+        });
     }
-    // Função auxiliar para converter o vídeo em arquivo enviável (Base64)
+};
+
 function converterParaBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -990,25 +998,22 @@ function converterParaBase64(file) {
   });
 }
 
-// Função executada ao clicar no botão "Enviar Vídeo"
 async function enviarVideoAnexo(nomePolo, index) {
   const inputVideo = document.getElementById(`input-video-${index}`);
   const statusEl = document.getElementById(`status-video-${index}`);
 
   if (!inputVideo || inputVideo.files.length === 0) {
-    alert("Por favor, selecione um arquivo de vídeo antes de enviar.");
+    Swal.fire('Atenção', 'Por favor, selecione um arquivo de vídeo antes de enviar.', 'warning');
     return;
   }
 
   const file = inputVideo.files[0];
 
-  // Limite de segurança recomendável de ~50MB para envios Web
   if (file.size > 50 * 1024 * 1024) {
-    alert("O arquivo é muito grande. Escolha um vídeo de até 50MB.");
+    Swal.fire('Arquivo muito grande', 'Escolha um vídeo de até 50MB.', 'warning');
     return;
   }
 
-  // Atualiza mensagem de status na tela
   if (statusEl) {
     statusEl.style.display = 'block';
     statusEl.style.color = '#0284c7';
@@ -1039,7 +1044,7 @@ async function enviarVideoAnexo(nomePolo, index) {
         statusEl.style.color = '#10b981';
         statusEl.innerHTML = `✅ Vídeo enviado com sucesso na pasta do Polo! <a href="${resultado.videoUrl}" target="_blank" style="color: #0284c7; text-decoration: underline;">Ver no Drive</a>`;
       }
-      inputVideo.value = ''; // Limpa o campo do arquivo
+      inputVideo.value = '';
     } else {
       throw new Error(resultado.message || "Erro no envio");
     }
@@ -1052,8 +1057,8 @@ async function enviarVideoAnexo(nomePolo, index) {
     }
   }
 }
+
 async function salvarPolo(nomePolo, index) {
-  // Pega os elementos preenchidos
   const anotacoes = document.getElementById(`anotacoes-${index}`)?.value || "";
   const recepcao = document.getElementById(`recepcao-${index}`)?.checked || false;
   const noteRecepcao = document.getElementById(`note-recepcao-${index}`)?.value || "";
@@ -1077,17 +1082,15 @@ async function salvarPolo(nomePolo, index) {
     const resultado = await response.json();
 
     if (resultado.status === "success") {
-      alert("✅ Dados salvos com sucesso na planilha!");
-      carregarPolosConcluidos(); // Recarrega os status para atualizar o check verde na hora
+      Swal.fire('Sucesso!', 'Dados salvos com sucesso na planilha!', 'success');
+      carregarPolosConcluidos();
     } else {
-      alert("❌ Erro ao salvar: " + resultado.message);
+      Swal.fire('Erro', 'Erro ao salvar: ' + resultado.message, 'error');
     }
   } catch (error) {
     console.error("Erro ao comunicar com o banco:", error);
-    alert("❌ Erro de conexão ao tentar salvar.");
+    Swal.fire('Erro de Conexão', 'Não foi possível conectar ao servidor para salvar.', 'error');
   }
 }
 
-// Vincula no window para o botão do HTML conseguir chamar no onclick
 window.salvarPolo = salvarPolo;
-};
