@@ -14,7 +14,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
-        /* Mantendo a estrutura do Layout Global Claro */
+        /* Estrutura do Layout Global */
         body {
             margin: 0;
             padding: 0;
@@ -45,7 +45,7 @@
             margin-left: 20px;
         }
 
-        /* Estilização dos Componentes de Filtro - Ajustado para Horizontal Perfeita */
+        /* Estilização dos Componentes de Filtro */
         .filter-bar {
             background-color: #ffffff;
             border: 1px solid #e2e8f0;
@@ -107,7 +107,6 @@
             margin-top: 24px;
         }
 
-        /* Cards brancos seguindo o padrão da listagem */
         .analytics-card {
             background-color: #ffffff;
             border: 1px solid #e2e8f0;
@@ -132,7 +131,6 @@
             font-weight: 600;
         }
 
-        /* Badge do totalizador de polos da lista */
         .count-badge {
             background-color: #10b981;
             color: #ffffff;
@@ -209,9 +207,7 @@
         }
 
         @media (max-width: 1024px) {
-            .analytics-grid {
-                grid-template-columns: 1fr;
-            }
+            .analytics-grid { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 640px) {
@@ -248,10 +244,18 @@
                 <span>Lista de Polos</span>
             </a>
 
-            <!-- Item 2: Gráficos & Mapas -->
-            <a href="#" style="display: flex; align-items: center; gap: 12px; color: #ffffff; background-color: #1e293b; padding: 12px; border-radius: 8px; text-decoration: none; font-size: 0.95rem; font-weight: 500; transition: all 0.2s;">
+            <!-- Item 2: Google Agenda -->
+            <a href="agenda.html" style="display: flex; align-items: center; gap: 12px; color: #94a3b8; padding: 12px; border-radius: 8px; text-decoration: none; font-size: 0.95rem; font-weight: 500; transition: all 0.2s;"
+               onmouseover="this.style.color='#ffffff'; this.style.backgroundColor='#1e293b';" 
+               onmouseout="this.style.color='#94a3b8'; this.style.backgroundColor='transparent';">
+                <i class="fa-solid fa-calendar-days" style="color: #38bdf8; width: 20px; text-align: center;"></i>
+                <span>Agenda de Visitas</span>
+            </a>
+
+            <!-- Item 3: Gráficos & Mapas (Ativo) -->
+            <a href="dashboard.html" style="display: flex; align-items: center; gap: 12px; color: #ffffff; background-color: #1e293b; padding: 12px; border-radius: 8px; text-decoration: none; font-size: 0.95rem; font-weight: 500; transition: all 0.2s;">
                 <i class="fa-solid fa-earth-americas" style="color: #10b981; width: 20px; text-align: center;"></i>
-                <span>Gráficos & Mapas</span>
+                <span>Dashboard</span>
             </a>
         </nav>
         
@@ -264,7 +268,7 @@
                     onmouseover="this.style.color='#ffffff'; this.style.backgroundColor='#1e293b';" 
                     onmouseout="this.style.color='#94a3b8'; this.style.backgroundColor='transparent';">
                     <i class="fa-solid fa-table" style="color: #10b981; width: 20px; text-align: center;"></i>
-                    <span>Planilha de Relatórios</span>
+                    <span>Relatórios</span>
                 </a>
             </div>
 
@@ -290,94 +294,90 @@
                         <i class="fa-solid fa-graduation-cap"></i>
                     </div>
                     <div>
-                        <h1 style="margin: 0; color: #1e293b; font-size: 1.5rem; font-weight: 700;">Análise Geográfica de Polos</h1>
-                        <p style="margin: 4px 0 0 0; color: #64748b; font-size: 0.9rem;">Visão geral quantitativa e distribuição por regiões</p>
+                        <h1 id="page-title" style="margin: 0; color: #1e293b; font-size: 1.5rem; font-weight: 700;">Dashboard dos Polos</h1>
+                        <p id="page-subtitle" style="margin: 4px 0 0 0; color: #64748b; font-size: 0.9rem;"
                     </div>
                 </div>
                 <img src="logo-unifecaf.png.png" alt="Logo UniFECAF" class="brand-logo">
             </header>
 
-            <!-- BARRA DE FILTROS TOTALMENTE CORRIGIDA E ADAPTADA AO SEU DESIGN -->
-            <div class="filter-bar">
-                <!-- Região -->
-                <div class="filter-block">
-                    <label for="filtroRegiao" class="filter-label">Região</label>
-                    <select id="filtroRegiao" class="filter-select">
-                        <option value="">Todas as Regiões</option>
-                        <option value="Norte">Norte</option>
-                        <option value="Nordeste">Nordeste</option>
-                        <option value="Centro-Oeste">Centro-Oeste</option>
-                        <option value="Sudeste">Sudeste</option>
-                        <option value="Sul">Sul</option>
-                    </select>
-                </div>
-                
-                <!-- Estado -->
-                <div class="filter-block">
-                    <label for="filtroEstado" class="filter-label">Estado</label>
-                    <select id="filtroEstado" class="filter-select">
-                        <option value="">Todos os Estados</option>
-                    </select>
-                </div>
-                
-                <!-- Modelo de Oferta -->
-                <div class="filter-block">
-                    <label for="filtroModelo" class="filter-label">Modelo de Oferta</label>
-                    <select id="filtroModelo" class="filter-select">
-                        <option value="">Todos os Modelos de Oferta</option>
-                        <option value="EAD">EAD</option>
-                        <option value="SEMI">Semipresencial</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Grid com Mapa e Gráfico -->
-            <section class="analytics-grid">
-                
-                <!-- CARD MAPA (Por Estado) -->
-                <div class="analytics-card">
-                    <h3>Distribuição por Estados (Mapa)</h3>
-                    <div id="mapaPolos" class="map-container" style="margin-top: 15px;"></div>
-                </div>
-                
-                <!-- CARD GRÁFICO (Por Região) -->
-                <div class="analytics-card">
-                    <h3>Quantidade de Polos por Região</h3>
-                    <div class="chart-container" style="margin-top: 15px;">
-                        <canvas id="graficoRegioes"></canvas>
+            <!-- CONTEÚDO DE GRÁFICOS, FILTROS E TABELA DE POLOS -->
+            <div id="painel-graficos-polos">
+                <!-- BARRA DE FILTROS -->
+                <div class="filter-bar">
+                    <div class="filter-block">
+                        <label for="filtroRegiao" class="filter-label">Região</label>
+                        <select id="filtroRegiao" class="filter-select">
+                            <option value="">Todas as Regiões</option>
+                            <option value="Norte">Norte</option>
+                            <option value="Nordeste">Nordeste</option>
+                            <option value="Centro-Oeste">Centro-Oeste</option>
+                            <option value="Sudeste">Sudeste</option>
+                            <option value="Sul">Sul</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-block">
+                        <label for="filtroEstado" class="filter-label">Estado</label>
+                        <select id="filtroEstado" class="filter-select">
+                            <option value="">Todos os Estados</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-block">
+                        <label for="filtroModelo" class="filter-label">Modelo de Oferta</label>
+                        <select id="filtroModelo" class="filter-select">
+                            <option value="">Todos os Modelos de Oferta</option>
+                            <option value="EAD">EAD</option>
+                            <option value="SEMI">Semipresencial</option>
+                        </select>
                     </div>
                 </div>
 
-            </section>
+                <!-- Grid com Mapa e Gráfico -->
+                <section class="analytics-grid">
+                    <div class="analytics-card">
+                        <h3>Distribuição por Estados (Mapa)</h3>
+                        <div id="mapaPolos" class="map-container" style="margin-top: 15px;"></div>
+                    </div>
+                    
+                    <div class="analytics-card">
+                        <h3>Quantidade de Polos por Região</h3>
+                        <div class="chart-container" style="margin-top: 15px;">
+                            <canvas id="graficoRegioes"></canvas>
+                        </div>
+                    </div>
+                </section>
 
-            <!-- NOVA LISTA DE POLOS DINÂMICA (Vinculada aos Filtros) -->
-            <section class="analytics-card table-section">
-                <div class="analytics-card-header">
-                    <h3>Polos Detalhados</h3>
-                    <span id="totalPolosBadge" class="count-badge">0 Polos</span>
-                </div>
-                <div class="table-responsive-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr id="cabecalhoTabela">
-                                <!-- Preenchido de forma dinâmica via script -->
-                            </tr>
-                        </thead>
-                        <tbody id="corpoTabela">
-                            <tr>
-                                <td class="text-center" style="padding: 30px; color: #64748b; text-align: center;">
-                                    Carregando registros de polos...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+                <!-- LISTA DE POLOS DETALHADOS -->
+                <section class="analytics-card table-section">
+                    <div class="analytics-card-header">
+                        <h3>Polos Detalhados</h3>
+                        <span id="totalPolosBadge" class="count-badge">0 Polos</span>
+                    </div>
+                    <div class="table-responsive-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr id="cabecalhoTabela">
+                                    <!-- Preenchido via script -->
+                                </tr>
+                            </thead>
+                            <tbody id="corpoTabela">
+                                <tr>
+                                    <td class="text-center" style="padding: 30px; color: #64748b; text-align: center;">
+                                        Carregando registros de polos...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
 
         </div>
     </div>
 
-    <!-- Script de Processamento e Inicialização -->
+    <!-- SCRIPT EXTERNO QUE GERENCIA A LÓGICA DO DASHBOARD -->
     <script src="dashboard.js"></script>
 </body>
 </html>
