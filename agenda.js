@@ -1,5 +1,5 @@
 let calendar;
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxgR-h-o_guzYdyA5kpmxXGNkwdK7t8QowPn5FHwS0K4yvuxbpVTQXMA8BB6aQFqauO/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzmx0evv1TzZ9uqWBbI6UxlDr8oz02KNDtsELWGjm9J3q1VLLvbvN3mMtWBdyV3XH-O/exec';
 
 // Inicialização do Calendário e Ouvintes de Evento
 document.addEventListener('DOMContentLoaded', function() {
@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 abrirEditor(info.event);
             },
             events: function(fetchInfo, successCallback, failureCallback) {
-                fetch(APPS_SCRIPT_URL)
+                fetch('https://script.google.com/macros/s/AKfycbzmx0evv1TzZ9uqWBbI6UxlDr8oz02KNDtsELWGjm9J3q1VLLvbvN3mMtWBdyV3XH-O/exec') 
                     .then(response => response.json())
                     .then(data => successCallback(data))
                     .catch(err => {
@@ -34,26 +34,49 @@ document.addEventListener('DOMContentLoaded', function() {
         calendar.render();
     }
 
-    // Vincula os cliques dos botões do Modal sem precisar de 'onclick' inline no HTML
-    document.getElementById('btnSalvar').addEventListener('click', salvarVisita);
-    document.getElementById('btnCancelar').addEventListener('click', fecharEditor);
-    document.getElementById('btnExcluir').addEventListener('click', excluirVisita);
+    // Vincula os cliques dos botões do Modal
+    document.getElementById('btnSalvar')?.addEventListener('click', salvarVisita);
+    document.getElementById('btnCancelar')?.addEventListener('click', fecharEditor);
+    document.getElementById('btnExcluir')?.addEventListener('click', excluirVisita);
+    
+    // Suporte ao botão Sair do Painel
+    document.getElementById('btn-sair')?.addEventListener('click', function() {
+        localStorage.removeItem('painel_polos_logado');
+        window.location.href = 'login.html';
+    });
 });
 
 // Funções de Gerenciamento do Modal
 function abrirEditor(event = null, dataSelecao = null) {
     document.getElementById('modalEditor').style.display = 'flex';
+    
     if (event) {
         document.getElementById('modalTitulo').innerText = "Editar Visita";
         document.getElementById('eventID').value = event.id;
-        document.getElementById('inputTitulo').value = event.title;
-        document.getElementById('inputData').value = event.startStr;
+        document.getElementById('inputTitulo').value = event.title || '';
+        
+        // Trata data e horário vindo do FullCalendar / Google Agenda
+        if (event.startStr.includes('T')) {
+            const [data, hora] = event.startStr.split('T');
+            document.getElementById('inputData').value = data;
+            document.getElementById('inputHora').value = hora.substring(0, 5);
+        } else {
+            document.getElementById('inputData').value = event.startStr;
+            document.getElementById('inputHora').value = "09:00";
+        }
+
+        // Recupera e-mail de convidado caso tenha sido retornado nas propriedades
+        const emailConvidado = event.extendedProps ? event.extendedProps.email : '';
+        document.getElementById('inputEmail').value = emailConvidado || '';
+
         document.getElementById('btnExcluir').style.display = 'block';
     } else {
         document.getElementById('modalTitulo').innerText = "Agendar Nova Visita";
         document.getElementById('eventID').value = "";
         document.getElementById('inputTitulo').value = "";
-        document.getElementById('inputData').value = dataSelecao;
+        document.getElementById('inputData').value = dataSelecao || "";
+        document.getElementById('inputHora').value = "09:00";
+        document.getElementById('inputEmail').value = "";
         document.getElementById('btnExcluir').style.display = 'none';
     }
 }
@@ -65,20 +88,27 @@ function fecharEditor() {
 
 function salvarVisita() {
     const id = document.getElementById('eventID').value;
-    const title = document.getElementById('inputTitulo').value;
-    const start = document.getElementById('inputData').value;
+    const title = document.getElementById('inputTitulo').value.trim();
+    const data = document.getElementById('inputData').value;
+    const hora = document.getElementById('inputHora').value;
+    const email = document.getElementById('inputEmail').value.trim();
 
-    if (!title || !start) return alert("Por favor, preencha todos os campos!");
+    if (!title || !data || !hora) {
+        return alert("Por favor, preencha o nome da visita, a data e o horário!");
+    }
 
+    // Concatena data e hora no formato ISO (Ex: 2026-07-07T09:00:00)
+    const startIso = `${data}T${hora}:00`;
     const action = id ? 'update' : 'create';
 
     const payload = new URLSearchParams();
     payload.append('action', action);
     payload.append('id', id);
     payload.append('title', title);
-    payload.append('start', start);
+    payload.append('start', startIso);
+    payload.append('email', email);
 
-    fetch(APPS_SCRIPT_URL, {
+    fetch('https://script.google.com/macros/s/AKfycbzmx0evv1TzZ9uqWBbI6UxlDr8oz02KNDtsELWGjm9J3q1VLLvbvN3mMtWBdyV3XH-O/exec', {
         method: 'POST',
         body: payload
     })
@@ -106,7 +136,7 @@ function excluirVisita() {
         payload.append('action', 'delete');
         payload.append('id', id);
 
-        fetch(APPS_SCRIPT_URL, {
+        fetch('https://script.google.com/macros/s/AKfycbzmx0evv1TzZ9uqWBbI6UxlDr8oz02KNDtsELWGjm9J3q1VLLvbvN3mMtWBdyV3XH-O/exec', {
             method: 'POST',
             body: payload
         })
