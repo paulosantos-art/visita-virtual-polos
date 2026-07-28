@@ -114,7 +114,6 @@
 <body>
 
     <!-- SIDEBAR FIXA (Esquerda) -->
-    <!-- SIDEBAR FIXA (Esquerda) - agenda.html -->
     <aside class="sidebar">
         <!-- Navegação Principal -->
         <nav class="menu-links">
@@ -176,7 +175,7 @@
                     </div>
                     <div>
                         <h1 style="margin: 0; color: #1e293b; font-size: 1.5rem; font-weight: 700;">Agenda de Visitas</h1>
-                        <p style="margin: 4px 0 0 0; color: #64748b; font-size: 0.9rem;"
+                        <p style="margin: 4px 0 0 0; color: #64748b; font-size: 0.9rem;">Gerencie os compromissos e agendamentos virtuais dos polos</p>
                     </div>
                 </div>
                 <img src="logo-unifecaf.png.png" alt="Logo UniFECAF" class="brand-logo">
@@ -200,28 +199,42 @@
 
     <!-- MODAL DE INTERAÇÃO DIRETA (ADICIONAR/EDITAR VISITAS) -->
     <div id="modalEditor" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
-        <div style="background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); font-family: 'Inter', sans-serif;">
-            <h4 id="modalTitulo" style="margin: 0 0 16px 0; color: #1e293b; font-size: 1.1rem; font-weight: 600;">Gerenciar Visita</h4>
+        <div style="background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 440px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); font-family: 'Inter', sans-serif;">
+            <h4 id="modalTitulo" style="margin: 0 0 16px 0; color: #1e293b; font-size: 1.15rem; font-weight: 700;">Gerenciar Visita</h4>
             
             <input type="hidden" id="eventID">
             
-            <label style="font-size: 12px; font-weight: 600; color: #64748b; display: block; margin-bottom: 6px;">NOME DO POLO / VISITA</label>
-            <input type="text" id="inputTitulo" placeholder="Ex: Polo Taboão - Visita Institucional" style="width: 100%; padding: 10px; margin-bottom: 16px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: inherit;">
+            <label style="font-size: 12px; font-weight: 700; color: #64748b; display: block; margin-bottom: 6px; text-transform: uppercase;">NOME DO POLO / VISITA</label>
+            <input type="text" id="inputTitulo" placeholder="Ex: Polo Taboão - Visita Institucional" style="width: 100%; padding: 10px; margin-bottom: 14px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: inherit;">
             
-            <label style="font-size: 12px; font-weight: 600; color: #64748b; display: block; margin-bottom: 6px;">DATA</label>
-            <input type="date" id="inputData" style="width: 100%; padding: 10px; margin-bottom: 20px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: inherit;">
-            
+            <!-- LINHA DUPLA: DATA E HORÁRIO -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: #64748b; display: block; margin-bottom: 6px; text-transform: uppercase;">DATA</label>
+                    <input type="date" id="inputData" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: inherit;">
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: #64748b; display: block; margin-bottom: 6px; text-transform: uppercase;">HORÁRIO</label>
+                    <input type="time" id="inputHora" value="09:00" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: inherit;">
+                </div>
+            </div>
+
+            <!-- E-MAIL DO CONVIDADO PARA O INVITE -->
+            <label style="font-size: 12px; font-weight: 700; color: #64748b; display: block; margin-bottom: 6px; text-transform: uppercase;">E-MAIL PARA INVITE (OPCIONAL)</label>
+            <input type="email" id="inputEmail" placeholder="exemplo@unifecaf.com.br" style="width: 100%; padding: 10px; margin-bottom: 20px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: inherit;">
+
+            <!-- BOTÕES DE AÇÃO -->
             <div style="display: flex; gap: 10px; justify-content: space-between; align-items: center;">
-                <button id="btnExcluir" style="background: #ef4444; color: white; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-weight: 500; font-family: inherit; transition: background 0.2s;" onmouseover="this.style.backgroundColor='#dc2626'" onmouseout="this.style.backgroundColor='#ef4444'">Excluir</button>
+                <button id="btnExcluir" style="background: #ef4444; color: white; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-weight: 600; font-family: inherit; transition: background 0.2s;" onmouseover="this.style.backgroundColor='#dc2626'" onmouseout="this.style.backgroundColor='#ef4444'">Excluir</button>
                 <div style="display: flex; gap: 10px; margin-left: auto;">
-                    <button id="btnCancelar" style="background: #f1f5f9; color: #64748b; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-weight: 500; font-family: inherit;">Cancelar</button>
+                    <button id="btnCancelar" style="background: #f1f5f9; color: #64748b; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-weight: 600; font-family: inherit;">Cancelar</button>
                     <button id="btnSalvar" style="background: #10b981; color: white; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-weight: 600; font-family: inherit; transition: background 0.2s;" onmouseover="this.style.backgroundColor='#059669'" onmouseout="this.style.backgroundColor='#10b981'">Salvar</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- SCRIPT EXTERNO (JavaScript isolado) -->
+    <!-- SCRIPT EXTERNO -->
     <script src="agenda.js"></script>
 </body>
 </html>
