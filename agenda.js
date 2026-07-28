@@ -1,5 +1,5 @@
 let calendar;
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzmx0evv1TzZ9uqWBbI6UxlDr8oz02KNDtsELWGjm9J3q1VLLvbvN3mMtWBdyV3XH-O/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/a/macros/fecaf.com.br/s/AKfycbzkAAY0OIc8IGqPwLdlhGTs8QNV7o3Z5v_CM_MnFnqR3kw3J3Znr5XfsnmOG7hW4pJQ/exec';
 
 // Inicialização do Calendário e Ouvintes de Evento
 document.addEventListener('DOMContentLoaded', function() {
@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 abrirEditor(info.event);
             },
             events: function(fetchInfo, successCallback, failureCallback) {
-                fetch('https://script.google.com/macros/s/AKfycbzmx0evv1TzZ9uqWBbI6UxlDr8oz02KNDtsELWGjm9J3q1VLLvbvN3mMtWBdyV3XH-O/exec') 
+                fetch('https://script.google.com/a/macros/fecaf.com.br/s/AKfycbzkAAY0OIc8IGqPwLdlhGTs8QNV7o3Z5v_CM_MnFnqR3kw3J3Znr5XfsnmOG7hW4pJQ/exec') 
                     .then(response => response.json())
                     .then(data => successCallback(data))
                     .catch(err => {
@@ -108,7 +108,7 @@ function salvarVisita() {
     payload.append('start', startIso);
     payload.append('email', email);
 
-    fetch('https://script.google.com/macros/s/AKfycbzmx0evv1TzZ9uqWBbI6UxlDr8oz02KNDtsELWGjm9J3q1VLLvbvN3mMtWBdyV3XH-O/exec', {
+    fetch('https://script.google.com/a/macros/fecaf.com.br/s/AKfycbzkAAY0OIc8IGqPwLdlhGTs8QNV7o3Z5v_CM_MnFnqR3kw3J3Znr5XfsnmOG7hW4pJQ/exec', {
         method: 'POST',
         body: payload
     })
@@ -136,7 +136,7 @@ function excluirVisita() {
         payload.append('action', 'delete');
         payload.append('id', id);
 
-        fetch('https://script.google.com/macros/s/AKfycbzmx0evv1TzZ9uqWBbI6UxlDr8oz02KNDtsELWGjm9J3q1VLLvbvN3mMtWBdyV3XH-O/exec', {
+        fetch('https://script.google.com/a/macros/fecaf.com.br/s/AKfycbzkAAY0OIc8IGqPwLdlhGTs8QNV7o3Z5v_CM_MnFnqR3kw3J3Znr5XfsnmOG7hW4pJQ/exec', {
             method: 'POST',
             body: payload
         })
