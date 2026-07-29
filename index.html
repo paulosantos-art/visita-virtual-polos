@@ -246,9 +246,36 @@
         </div>
     </div>
 
-    <!-- Script do Comportamento JavaScript -->
+    <!-- =================================================== -->
+    <!-- BIBLIOTECAS E INICIALIZAÇÃO DO FIREBASE DATABASE    -->
+    <!-- =================================================== -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <script>
+        // Suas chaves de conexão que você copiou do Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyAhuaxlZCcWOAXMXI6ntwXEUMUT14gy1QU",
+            authDomain: "painel-polos.firebaseapp.com",
+            databaseURL: "https://painel-polos-default-rtdb.firebaseio.com",
+            projectId: "painel-polos",
+            storageBucket: "painel-polos.firebasestorage.app",
+            messagingSenderId: "259211070710",
+            appId: "1:259211070710:web:5447694b4bf93bae7630d7",
+            measurementId: "G-1LBZG5HYQB"
+        };
+
+        // Inicializa o Firebase
+        firebase.initializeApp(firebaseConfig);
+        
+        // Torna a variável do banco de dados acessível globalmente no seu script.js
+        window.database = firebase.database();
+    </script>
+
+    <!-- SweetAlert2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- Script do Comportamento JavaScript (Seu arquivo de lógica) -->
     <script src="script.js"></script>
-    <!-- SweetAlert2 CSS & JS -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 </html>
