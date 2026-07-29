@@ -18,29 +18,18 @@ const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxH-7NvAu4PbBPBpEWd
 let database = [];
 let baseCursosPolos = {}; 
 let listaTodosCursos = []; 
+let cachePolosFirebase = {}; // Armazena o estado do Firebase em tempo real
 
 // Variáveis de Paginação e Filtro de Concluídos
 let paginaAtual = 1;
 const itensPorPagina = 10;
 let apenasConcluidos = false;
 
-// =========================================================================
-// 📥 FUNÇÃO DE LEITURA (Busca os polos concluídos ao abrir a página)
-// =========================================================================
-async function carregarPolosConcluidos() {
-  try {
-    const response = await fetch('https://script.google.com/macros/s/AKfycbxH-7NvAu4PbBPBpEWd5UGCUApnpVlMiAeTLsZcoL_DOiF3MKDnuVidCPHzDZVsUgns/exec');
-    const data = await response.json();
-
-    if (data.status === "success" && data.polos) {
-      console.log("Polos gravados na planilha:", data.polos);
-    }
-  } catch (error) {
-    console.error("Erro ao carregar os polos concluídos:", error);
-  }
+// Função utilitária para transformar o nome do polo em uma chave válida no Firebase
+function sanitizarChavePolo(nomePolo) {
+    if (!nomePolo) return '';
+    return nomePolo.replace(/[.#$\[\]\/]/g, "_").trim();
 }
-
-document.addEventListener("DOMContentLoaded", carregarPolosConcluidos);
 
 // =========================================================================
 // 2. ELEMENTOS DO DOM (MAPEAMENTO)
@@ -62,9 +51,12 @@ const txtBadgeConcluidos = document.getElementById('txt-badge-concluidos');
 const btnSair = document.getElementById('btn-sair'); 
 
 // =========================================================================
-// 3. INICIALIZAÇÃO DO PAINEL
+// 3. INICIALIZAÇÃO DO PAINEL & CONEXÃO FIREBASE REALTIME
 // =========================================================================
 document.addEventListener('DOMContentLoaded', async () => {
+    // Escuta sincronizada em Tempo Real com o Firebase Database
+    sincronizarFirebaseEmTempoReal();
+
     await carregarCursosDaPlanilha();
     await carregarDadosDaPlanilha();
 
@@ -138,6 +130,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });     
 });
+
+// Sincronizador ativo do Firebase (Atualiza as telas de todos os usuários em tempo real)
+function sincronizarFirebaseEmTempoReal() {
+    if (!window.database) return;
+
+    window.database.ref('polos').on('value', (snapshot) => {
+        cachePolosFirebase = snapshot.val() || {};
+        filtrarEDesenhar();
+    });
+}
 
 function efetuarLogout() {
     localStorage.removeItem('painel_polos_logado');
@@ -422,6 +424,17 @@ function toggleNotaAmbiente(checkboxId, boxId) {
     }
 }
 
+// Helper para verificar status de polo concluído (Firebase com fallback para LocalStorage)
+function isPoloConcluido(nomePolo) {
+    const chave = sanitizarChavePolo(nomePolo);
+    const dados = cachePolosFirebase[chave] || JSON.parse(localStorage.getItem(`polo_data_${nomePolo}`) || 'null');
+    
+    if (!dados) return false;
+    const temTexto = dados.anotacoes && dados.anotacoes.trim() !== '';
+    const temAmbiente = dados.recepcao || dados.coordenacao || dados.estudos || dados.informatica || dados.especializado || dados.outros;
+    return temTexto || temAmbiente;
+}
+
 // =========================================================================
 // 8. FILTRAGEM, RENDERIZAÇÃO DA TABELA, DETALHES E PAGINAÇÃO
 // =========================================================================
@@ -434,16 +447,8 @@ function filtrarEDesenhar() {
 
     const dadosFiltrados = database.filter(polo => {
         // Validação de Polo Concluído (Se o filtro estiver ligado)
-        if (apenasConcluidos) {
-            const dadosSalvos = localStorage.getItem(`polo_data_${polo.Nome}`);
-            let isConcluido = false;
-            if (dadosSalvos) {
-                const parsed = JSON.parse(dadosSalvos);
-                const temTexto = parsed.anotacoes && parsed.anotacoes.trim() !== '';
-                const temAmbiente = parsed.recepcao || parsed.coordenacao || parsed.estudos || parsed.informatica || parsed.especializado || parsed.outros;
-                isConcluido = temTexto || temAmbiente;
-            }
-            if (!isConcluido) return false;
+        if (apenasConcluidos && !isPoloConcluido(polo.Nome)) {
+            return false;
         }
 
         const atendeBusca = polo.Nome.toLowerCase().includes(busca);
@@ -534,16 +539,9 @@ function filtrarEDesenhar() {
                     `;
                 }
 
-                const dadosSalvos = localStorage.getItem(`polo_data_${polo.Nome}`);
-                let checkIconHtml = '';
-                if (dadosSalvos) {
-                    const dados = JSON.parse(dadosSalvos);
-                    const temTexto = dados.anotacoes && dados.anotacoes.trim() !== '';
-                    const temAmbiente = dados.recepcao || dados.coordenacao || dados.estudos || dados.informatica || dados.especializado || dados.outros;
-                    if (temTexto || temAmbiente) {
-                        checkIconHtml = `<i class="fa-solid fa-circle-check item-visto-check" style="color: #10b981; font-size: 1.15rem; margin-left: auto;" title="Polo Concluído"></i>`;
-                    }
-                }
+                const checkIconHtml = isPoloConcluido(polo.Nome)
+                    ? `<i class="fa-solid fa-circle-check item-visto-check" style="color: #10b981; font-size: 1.15rem; margin-left: auto;" title="Polo Concluído"></i>`
+                    : '';
 
                 const mainRow = document.createElement('tr');
                 mainRow.className = 'polo-row';
@@ -755,7 +753,7 @@ function renderizarPaginacao(totalItens) {
 }
 
 // =========================================================================
-// 9. INDICADORES E PAINEL DE PERSISTÊNCIA
+// 9. INDICADORES E PAINEL DE PERSISTÊNCIA (FIREBASE + LOCALSTORAGE)
 // =========================================================================
 
 function atualizarIndicadores(dadosFiltrados) {
@@ -775,41 +773,35 @@ function atualizarIndicadores(dadosFiltrados) {
 
     let concluidos = 0;
     database.forEach(p => {
-        const dados = localStorage.getItem(`polo_data_${p.Nome}`);
-        if (dados) {
-            const parsed = JSON.parse(dados);
-            const temTexto = parsed.anotacoes && parsed.anotacoes.trim() !== '';
-            const temAmb = parsed.recepcao || parsed.coordenacao || parsed.estudos || parsed.informatica || parsed.especializado || parsed.outros;
-            if (temTexto || temAmb) concluidos++;
-        }
+        if (isPoloConcluido(p.Nome)) concluidos++;
     });
 
     if (txtBadgeConcluidos) {
-        // Exibe apenas a quantidade (para evitar repetição com o HTML estático)
         txtBadgeConcluidos.textContent = `${concluidos} Concluídos`;
     }
 }
 
 function carregarConfiguracaoDoPolo(nomePolo, index) {
-    const dadosSalvos = localStorage.getItem(`polo_data_${nomePolo}`);
-    if (!dadosSalvos) return;
+    const chave = sanitizarChavePolo(nomePolo);
+    
+    // Tenta obter do cache do Firebase primeiro, senão lê do LocalStorage
+    const dados = cachePolosFirebase[chave] || JSON.parse(localStorage.getItem(`polo_data_${nomePolo}`) || 'null');
+    if (!dados) return;
 
     try {
-        const dados = JSON.parse(dadosSalvos);
-
         const txtNotas = document.getElementById(`notes-${index}`);
-        if (txtNotas && dados.anotacoes) txtNotas.value = dados.anotacoes;
+        if (txtNotas) txtNotas.value = dados.anotacoes || '';
 
         const ambientes = ['recepcao', 'coordenacao', 'estudos', 'informatica', 'especializado', 'outros'];
         ambientes.forEach(amb => {
             const chk = document.getElementById(`env-${amb}-${index}`);
             const note = document.getElementById(`note-${amb}-${index}`);
             
-            if (chk && dados[amb]) {
-                chk.checked = true;
+            if (chk) {
+                chk.checked = !!dados[amb];
                 toggleNotaAmbiente(`env-${amb}-${index}`, `box-${amb}-${index}`);
-                if (note && dados[`note_${amb}`]) {
-                    note.value = dados[`note_${amb}`];
+                if (note) {
+                    note.value = dados[`note_${amb}`] || '';
                 }
             }
         });
@@ -825,11 +817,12 @@ async function salvarConfiguracaoDoPolo(nomePolo, index) {
     if (btnSalvar) btnSalvar.disabled = true;
     if (statusFeedback) {
         statusFeedback.style.display = 'inline-flex';
-        statusFeedback.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="color: #0284c7;"></i> Sincronizando com a nuvem...`;
+        statusFeedback.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="color: #0284c7;"></i> Sincronizando com Firebase...`;
     }
 
     const txtNotas = document.getElementById(`notes-${index}`);
     const poloNomeLimpo = String(nomePolo).trim();
+    const chavePolo = sanitizarChavePolo(poloNomeLimpo);
 
     const payload = {
         polo: poloNomeLimpo,
@@ -845,26 +838,38 @@ async function salvarConfiguracaoDoPolo(nomePolo, index) {
         especializado: document.getElementById(`env-especializado-${index}`)?.checked || false,
         note_especializado: document.getElementById(`note-especializado-${index}`)?.value || '',
         outros: document.getElementById(`env-outros-${index}`)?.checked || false,
-        note_outros: document.getElementById(`note-outros-${index}`)?.value || ''
+        note_outros: document.getElementById(`note-outros-${index}`)?.value || '',
+        atualizadoEm: new Date().toISOString()
     };
 
+    // 1. Salva no Firebase Realtime Database
+    if (window.database) {
+        try {
+            await window.database.ref('polos/' + chavePolo).set(payload);
+        } catch (fbErr) {
+            console.error("Erro ao gravar no Firebase:", fbErr);
+        }
+    }
+
+    // 2. Salva localmente (Backup)
     localStorage.setItem(`polo_data_${poloNomeLimpo}`, JSON.stringify(payload));
 
-    if (WEB_APP_URL && WEB_APP_URL !== '') {
+    // 3. Opcional: Envia ao Google AppScript (Planilha original)
+    if (WEB_APP_URL) {
         try {
-            await fetch('https://script.google.com/macros/s/AKfycbxH-7NvAu4PbBPBpEWd5UGCUApnpVlMiAeTLsZcoL_DOiF3MKDnuVidCPHzDZVsUgns/exec', {
+            fetch(WEB_APP_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify(payload)
             });
         } catch (err) {
-            console.warn("Serviço remoto indisponível, salvo apenas no navegador.", err);
+            console.warn("Serviço Apps Script indisponível.", err);
         }
     }
 
     if (statusFeedback) {
-        statusFeedback.innerHTML = `<i class="fa-solid fa-cloud-check" style="color: #10b981;"></i> Salvo na nuvem!`;
+        statusFeedback.innerHTML = `<i class="fa-solid fa-cloud-check" style="color: #10b981;"></i> Salvo em tempo real!`;
     }
 
     if (btnSalvar) btnSalvar.disabled = false;
@@ -908,15 +913,14 @@ function abrirAgendaGlobal() {
 }
 
 // ==========================================
-// FUNÇÃO PARA LIMPAR DADOS (MODAL SWEETALERT2)
+// FUNÇÃO PARA LIMPAR DADOS (FIREBASE + LOCALSTORAGE)
 // ==========================================
 window.limparDadosPolo = async function(nomePolo, index) {
     if (!nomePolo) return;
 
-    // Modal de Confirmação Moderno e Estilizado
     const result = await Swal.fire({
         title: 'Confirma que quer excluir?',
-        text: `Você está prestes a apagar todos os dados registrados do polo "${nomePolo}". Esta ação não poderá ser desfeita.`,
+        text: `Você está prestes a apagar todos os dados registrados do polo "${nomePolo}". Esta ação afetará todos os usuários em tempo real.`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
@@ -928,65 +932,37 @@ window.limparDadosPolo = async function(nomePolo, index) {
 
     if (!result.isConfirmed) return;
 
-    const statusEl = document.getElementById(`status-salvamento-${index}`);
-    if (statusEl) {
-        statusEl.style.display = 'inline-flex';
-        statusEl.style.color = '#334155';
-        statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Limpando...';
+    const chavePolo = sanitizarChavePolo(nomePolo);
+
+    // 1. Exclui do Firebase
+    if (window.database) {
+        await window.database.ref('polos/' + chavePolo).remove();
     }
 
-    const containerPolo = statusEl ? (statusEl.closest('.polo-card') || statusEl.closest('tr') || statusEl.closest('td') || statusEl.closest('div')) : null;
-    const escopo = containerPolo || document;
+    // 2. Limpa LocalStorage
+    localStorage.removeItem(`polo_data_${nomePolo}`);
 
-    escopo.querySelectorAll('textarea').forEach(ta => {
-        ta.value = '';
-        ta.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-
-    escopo.querySelectorAll('input[type="text"]').forEach(inp => {
-        inp.value = '';
-        inp.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-
-    escopo.querySelectorAll('input[type="checkbox"]').forEach(chk => {
-        chk.checked = false;
-        chk.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-
-    for (let i = localStorage.length - 1; i >= 0; i--) {
-        const key = localStorage.key(i);
-        if (key && key.includes(nomePolo)) {
-            localStorage.removeItem(key);
+    // 3. Limpa Apps Script
+    if (WEB_APP_URL) {
+        try {
+            fetch(WEB_APP_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({ action: "limpar", polo: nomePolo })
+            });
+        } catch (e) {
+            console.error("Erro Apps Script:", e);
         }
     }
 
-    filtrarEDesenhar();
-
-    try {
-        await fetch('https://script.google.com/macros/s/AKfycbxH-7NvAu4PbBPBpEWd5UGCUApnpVlMiAeTLsZcoL_DOiF3MKDnuVidCPHzDZVsUgns/exec', {
-            method: "POST",
-            mode: "cors",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({ action: "limpar", polo: nomePolo })
-        });
-
-        Swal.fire({
-            title: 'Excluído!',
-            text: 'Os dados do polo foram apagados com sucesso.',
-            icon: 'success',
-            timer: 2000,
-            showConfirmButton: false
-        });
-
-    } catch (error) {
-        console.error("Erro ao comunicar limpeza com a planilha:", error);
-        Swal.fire({
-            title: 'Erro!',
-            text: 'Ocorreu um erro ao tentar limpar os dados na planilha.',
-            icon: 'error',
-            confirmButtonColor: '#0284c7'
-        });
-    }
+    Swal.fire({
+        title: 'Excluído!',
+        text: 'Os dados do polo foram apagados em tempo real.',
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+    });
 };
 
 function converterParaBase64(file) {
@@ -1030,7 +1006,7 @@ async function enviarVideoAnexo(nomePolo, index) {
       tipoMime: file.type,
       arquivoBase64: base64
     };
-    const response = await fetch('https://script.google.com/macros/s/AKfycbxH-7NvAu4PbBPBpEWd5UGCUApnpVlMiAeTLsZcoL_DOiF3MKDnuVidCPHzDZVsUgns/exec', {
+    const response = await fetch(WEB_APP_URL, {
       method: "POST",
       mode: "cors",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -1057,40 +1033,3 @@ async function enviarVideoAnexo(nomePolo, index) {
     }
   }
 }
-
-async function salvarPolo(nomePolo, index) {
-  const anotacoes = document.getElementById(`anotacoes-${index}`)?.value || "";
-  const recepcao = document.getElementById(`recepcao-${index}`)?.checked || false;
-  const noteRecepcao = document.getElementById(`note-recepcao-${index}`)?.value || "";
-
-  const payload = {
-    polo: nomePolo,
-    anotacoes: anotacoes,
-    recepcao: recepcao,
-    note_recepcao: noteRecepcao,
-    status: "Concluído"
-  };
-
-  try {
-    const response = await fetch('https://script.google.com/macros/s/AKfycbxH-7NvAu4PbBPBpEWd5UGCUApnpVlMiAeTLsZcoL_DOiF3MKDnuVidCPHzDZVsUgns/exec', {
-      method: "POST",
-      mode: "cors",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload)
-    });
-
-    const resultado = await response.json();
-
-    if (resultado.status === "success") {
-      Swal.fire('Sucesso!', 'Dados salvos com sucesso na planilha!', 'success');
-      carregarPolosConcluidos();
-    } else {
-      Swal.fire('Erro', 'Erro ao salvar: ' + resultado.message, 'error');
-    }
-  } catch (error) {
-    console.error("Erro ao comunicar com o banco:", error);
-    Swal.fire('Erro de Conexão', 'Não foi possível conectar ao servidor para salvar.', 'error');
-  }
-}
-
-window.salvarPolo = salvarPolo;
