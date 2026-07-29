@@ -96,9 +96,19 @@
             </a>
         </nav>
         
-        <!-- Rodapé da Sidebar: Links + Sair -->
+        <!-- Rodapé da Sidebar: Vídeos + Relatórios + Sair -->
         <div class="sidebar-footer">
             <div class="utility-links">
+                <!-- Botão Vídeos das Visitas integrado com classe padrão btn-nav -->
+                <a href="https://drive.google.com/drive/folders/1zdMIRPPFk3roA30NlwD_OZmtRX4cHbLE" 
+                   target="_blank" 
+                   rel="noopener noreferrer"
+                   class="btn-nav">
+                     <i class="fa-solid fa-folder-open icon-green"></i>
+                     <span>Vídeos das Visitas</span>
+                </a>
+
+                <!-- Botão Relatórios original -->
                 <a href="https://docs.google.com/spreadsheets/d/1_8l39f0R50RvmeFiSqd3_lXwWaVN_YipF-JHZe-hVEc/edit?gid=0#gid=0" 
                    target="_blank" 
                    rel="noopener noreferrer"
@@ -253,7 +263,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
     <script>
-        // Suas chaves de conexão que você copiou do Firebase
+        // Suas chaves de conexão do Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyAhuaxlZCcWOAXMXI6ntwXEUMUT14gy1QU",
             authDomain: "painel-polos.firebaseapp.com",
@@ -268,14 +278,14 @@
         // Inicializa o Firebase
         firebase.initializeApp(firebaseConfig);
         
-        // Torna a variável do banco de dados acessível globalmente no seu script.js
+        // Torna a variável do banco de dados acessível globalmente
         window.database = firebase.database();
     </script>
 
     <!-- SweetAlert2 JS -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    <!-- Script do Comportamento JavaScript (Seu arquivo de lógica) -->
+    <!-- Script do Comportamento JavaScript -->
     <script src="script.js"></script>
 </body>
 </html>
