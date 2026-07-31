@@ -10,62 +10,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Folha de Estilos Externa -->
     <link rel="stylesheet" href="style.css">
-    <style>
-        /* Estilos para a Barra de Ações dos Polos */
-        .polo-actions-bar {
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 12px;
-            padding: 16px 0;
-            border-top: 1px solid #e2e8f0;
-            margin-top: 20px;
-            flex-wrap: wrap;
-        }
-
-        .btn-action {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 18px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            transition: all 0.2s ease-in-out;
-        }
-
-        .btn-action:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        .btn-limpar {
-            background-color: #ef4444;
-            color: #ffffff;
-            margin-right: auto; /* Empurra o botão de limpar para a esquerda */
-        }
-        .btn-limpar:hover {
-            background-color: #dc2626;
-        }
-
-        .btn-salvar {
-            background-color: #10b981;
-            color: #ffffff;
-        }
-        .btn-salvar:hover {
-            background-color: #059669;
-        }
-
-        .btn-agendar {
-            background-color: #0284c7;
-            color: #ffffff;
-        }
-        .btn-agendar:hover {
-            background-color: #0369a1;
-        }
-    </style>
 </head>
 <body>
 
@@ -99,7 +43,6 @@
         <!-- Rodapé da Sidebar: Vídeos + Relatórios + Sair -->
         <div class="sidebar-footer">
             <div class="utility-links">
-                <!-- Botão Vídeos das Visitas integrado com classe padrão btn-nav -->
                 <a href="https://drive.google.com/drive/folders/1zdMIRPPFk3roA30NlwD_OZmtRX4cHbLE" 
                    target="_blank" 
                    rel="noopener noreferrer"
@@ -108,7 +51,6 @@
                      <span>Vídeos das Visitas</span>
                 </a>
 
-                <!-- Botão Relatórios original -->
                 <a href="https://docs.google.com/spreadsheets/d/1_8l39f0R50RvmeFiSqd3_lXwWaVN_YipF-JHZe-hVEc/edit?gid=0#gid=0" 
                    target="_blank" 
                    rel="noopener noreferrer"
@@ -246,7 +188,7 @@
                                 </tr>
                             </thead>
                             <tbody id="tabela-polos-body">
-                                <!-- Os polos e seus detalhes expansíveis entram dinamicamente via JS -->
+                                <!-- Conteúdo gerado via script.js -->
                             </tbody>
                         </table>
                     </div>
@@ -263,7 +205,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
     <script>
-        // Suas chaves de conexão do Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyAhuaxlZCcWOAXMXI6ntwXEUMUT14gy1QU",
             authDomain: "painel-polos.firebaseapp.com",
@@ -275,17 +216,14 @@
             measurementId: "G-1LBZG5HYQB"
         };
 
-        // Inicializa o Firebase
         firebase.initializeApp(firebaseConfig);
-        
-        // Torna a variável do banco de dados acessível globalmente
         window.database = firebase.database();
     </script>
 
     <!-- SweetAlert2 JS -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    <!-- Script do Comportamento JavaScript -->
+    <!-- Script de Comportamento -->
     <script src="script.js"></script>
 </body>
 </html>
