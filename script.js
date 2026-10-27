@@ -571,7 +571,10 @@ function filtrarEDesenhar() {
                 detailRow.id = `detail-row-${index}`;
                 detailRow.style.display = 'none'; 
                 
-                const nomePoloEncoded = encodeURIComponent(polo.Nome);
+           
+const nomePoloEncoded = encodeURIComponent(polo.Nome)
+    .replace(/'/g, '%27');
+
 
                 detailRow.innerHTML = `
                     <td colspan="5" style="padding: 0; border: none;">
