@@ -132,15 +132,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // Sincronizador ativo do Firebase (Atualiza as telas de todos os usuários em tempo real)
+
 function sincronizarFirebaseEmTempoReal() {
     if (!window.database) return;
 
     window.database.ref('polos').on('value', (snapshot) => {
         cachePolosFirebase = snapshot.val() || {};
-        filtrarEDesenhar();
+
+        // Não reconstruir a tabela enquanto um polo estiver aberto.
+        const painelAberto = document.querySelector(
+            '.detail-row[style*="table-row"]'
+        );
+
+        if (!painelAberto) {
+            filtrarEDesenhar();
+        }
     });
 }
-
 function efetuarLogout() {
     localStorage.removeItem('painel_polos_logado');
     window.location.href = 'login.html';
@@ -843,13 +851,24 @@ async function salvarConfiguracaoDoPolo(nomePolo, index) {
     };
 
     // 1. Salva no Firebase Realtime Database
-    if (window.database) {
-        try {
-            await window.database.ref('polos/' + chavePolo).set(payload);
-        } catch (fbErr) {
-            console.error("Erro ao gravar no Firebase:", fbErr);
-        }
-    }
+  
+if (!window.database) {
+    console.error("Firebase Realtime Database não inicializado.");
+    alert("Erro: conexão com o Firebase não está disponível.");
+    if (btnSalvar) btnSalvar.disabled = false;
+    return;
+}
+
+try {
+    await window.database.ref('polos/' + chavePolo).set(payload);
+    console.log("Polo salvo com sucesso:", poloNomeLimpo, chavePolo);
+} catch (fbErr) {
+    console.error("Erro ao gravar no Firebase:", fbErr);
+    alert("Não foi possível salvar o polo: " + fbErr.message);
+    if (btnSalvar) btnSalvar.disabled = false;
+    return;
+}
+
 
     // 2. Salva localmente (Backup)
     localStorage.setItem(`polo_data_${poloNomeLimpo}`, JSON.stringify(payload));
