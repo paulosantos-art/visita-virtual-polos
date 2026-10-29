@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta - Visita Virtual dos Polos</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- SIDEBAR FIXA (Esquerda) -->
+    <aside class="sidebar">
+        <div>
+            <div class="sidebar-brand">
+                <div class="brand-mark"><i class="fa-solid fa-graduation-cap"></i></div>
+                <div class="brand-text">
+                    <strong>Visita Virtual</strong>
+                    <span>Polos UniFECAF</span>
+                </div>
+            </div>
+
+            <nav class="menu-links">
+                <div class="menu-subtitle">Consulta</div>
+
+                <a href="consulta.html" class="btn-nav active">
+                    <i class="fa-solid fa-magnifying-glass-chart icon-blue"></i>
+                    <span>Visitas por Região</span>
+                </a>
+            </nav>
+        </div>
+
+        <!-- Rodapé da Sidebar: Vídeos + Acesso Regulatório -->
+        <div class="sidebar-footer">
+            <div class="utility-links">
+                <div class="menu-subtitle">Links úteis</div>
+                <a href="https://drive.google.com/drive/folders/1zdMIRPPFk3roA30NlwD_OZmtRX4cHbLE"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="btn-nav">
+                     <i class="fa-solid fa-folder-open icon-green"></i>
+                     <span>Vídeos das Visitas</span>
+                     <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                </a>
+            </div>
+
+            <hr class="sidebar-divider">
+
+            <a href="login.html" class="btn-sair btn-acesso">
+                <i class="fa-solid fa-user-shield"></i>
+                <span>Acesso Regulatório</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- CONTEÚDO PRINCIPAL (Direita) -->
+    <div class="main-content">
+        <div class="container">
+
+            <header class="main-header">
+                <div class="logo-area">
+                    <div class="icon-wrapper">
+                        <i class="fa-solid fa-magnifying-glass-chart"></i>
+                    </div>
+                    <div>
+                        <h1>Consulta das Visitas</h1>
+                        <p class="page-subtitle">Acompanhe o andamento das visitas aos polos em cada região</p>
+                    </div>
+                </div>
+
+                <div class="brand-logo-wrapper">
+                    <img src="logo-unifecaf.png.png" alt="Logo UniFECAF" class="brand-logo">
+                </div>
+            </header>
+
+            <!-- Indicadores (do Brasil todo ou da região escolhida) -->
+            <section class="cards-grid">
+                <div class="card card-total">
+                    <div class="card-icon"><i class="fa-solid fa-building-columns"></i></div>
+                    <div class="card-info">
+                        <span class="card-number" id="consulta-total">0</span>
+                        <span class="card-label">Total de Polos</span>
+                    </div>
+                </div>
+
+                <div class="card card-done">
+                    <div class="card-icon"><i class="fa-solid fa-circle-check"></i></div>
+                    <div class="card-info">
+                        <span class="card-number" id="consulta-visitados">0</span>
+                        <span class="card-label">Polos Visitados</span>
+                    </div>
+                </div>
+
+                <div class="card card-pending">
+                    <div class="card-icon"><i class="fa-solid fa-hourglass-half"></i></div>
+                    <div class="card-info">
+                        <span class="card-number" id="consulta-pendentes">0</span>
+                        <span class="card-label">Polos Pendentes</span>
+                    </div>
+                </div>
+
+                <div class="card card-progress">
+                    <div class="card-icon"><i class="fa-solid fa-chart-line"></i></div>
+                    <div class="card-info">
+                        <span class="card-number" id="consulta-cobertura">0%</span>
+                        <div class="progress-track"><div class="progress-fill" id="consulta-barra"></div></div>
+                        <span class="card-label">Cobertura das Visitas</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Abas das regiões + ações -->
+            <section class="consulta-barra">
+                <div class="regiao-abas" id="regiao-abas" role="tablist"></div>
+
+                <div class="consulta-acoes">
+                    <div class="search-box consulta-busca">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" id="consulta-busca" placeholder="Buscar polo ou estado...">
+                    </div>
+                    <button type="button" id="consulta-btn-relatorio" class="btn-relatorio">
+                        <i class="fa-solid fa-file-lines"></i> Gerar Relatório
+                    </button>
+                </div>
+            </section>
+
+            <!-- Conteúdo: visão geral das regiões ou polos da região escolhida -->
+            <section id="consulta-conteudo">
+                <div class="empty-state">
+                    <i class="fa-solid fa-spinner fa-spin"></i>
+                    Carregando polos...
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <!-- Firebase (somente leitura dos dados das visitas, sem login) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="firebase-config.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <script src="menu-mobile.js"></script>
+    <script src="polos-base.js"></script>
+    <script src="relatorio.js"></script>
+    <script src="consulta.js"></script>
+</body>
+</html>
