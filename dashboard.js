@@ -2,8 +2,8 @@
 // 1. CONFIGURAÇÕES E BANCO DE DADOS EM MEMÓRIA
 // ==========================================
 
-// Configuração oficial da planilha
-const SPREADSHEET_ID = '1pXYokP61OdQfhSboBvncowQdW-1alazr6jrLplZuIn4';
+// Mesma planilha da Lista de Polos (script.js), para os números baterem entre as telas
+const SPREADSHEET_ID = '1km9rpUas9U3V4zqRqCp4AxxR_srUphtlckBuGRF7lqQ';
 const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv`;
 
 // Banco de dados em memória local para permitir filtros sem re-fazer fetch
@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Configura o botão de logout
     document.getElementById('btn-sair')?.addEventListener('click', () => {
         if (confirm("Deseja realmente sair do painel?")) {
-            window.location.href = 'login.html';
+            sairDoSistema();
         }
     });
 });
@@ -60,21 +60,29 @@ async function carregarDadosDashboard() {
         for (let i = 0; i < cabecalho.length; i++) {
             const nomeColuna = cabecalho[i].replace(/^"|"$/g, '').trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             
-            if (nomeColuna === 'polo' || nomeColuna === 'nome' || nomeColuna.includes('nome')) {
+            // Mesma regra da Lista de Polos: vale a primeira coluna que combinar
+            if (COLUNAS_INDICES.nome === -1 && (nomeColuna.includes('nome') || nomeColuna.includes('polo') || nomeColuna.includes('cidade'))) {
                 COLUNAS_INDICES.nome = i;
             }
-            if (nomeColuna === 'regiao') {
+            if (COLUNAS_INDICES.regiao === -1 && nomeColuna.includes('regia')) {
                 COLUNAS_INDICES.regiao = i;
             }
-            if (nomeColuna === 'estado' || nomeColuna === 'uf' || nomeColuna === 'estados') {
+            if (COLUNAS_INDICES.estado === -1 && nomeColuna.includes('estado')) {
                 COLUNAS_INDICES.estado = i;
             }
         }
+        if (COLUNAS_INDICES.nome === -1) COLUNAS_INDICES.nome = 0;
+        if (COLUNAS_INDICES.regiao === -1) COLUNAS_INDICES.regiao = 1;
+        if (COLUNAS_INDICES.estado === -1) COLUNAS_INDICES.estado = 2;
+
+        // Mantém só as linhas que a Lista de Polos também considera (com nome preenchido)
+        DADOS_PLANILHA_ORIGINAL = [DADOS_PLANILHA_ORIGINAL[0], ...DADOS_PLANILHA_ORIGINAL.slice(1).filter(linha =>
+            linha.length >= 2 && (linha[COLUNAS_INDICES.nome] || '').trim() !== ''
+        )];
 
         // Popula inteligentemente os seletores com base na carga inicial de dados
         atualizarFiltroRegioes();
         atualizarFiltroEstados();
-        atualizarFiltroModelos();
         montarCabecalhoTabela();
         processarEFiltarDados();
 
@@ -91,21 +99,12 @@ function configurarOuvintesFiltros() {
     // Quando alterar a Região
     document.getElementById('filtroRegiao')?.addEventListener('change', () => {
         atualizarFiltroEstados();
-        atualizarFiltroModelos();
         processarEFiltarDados();
     });
 
     // Quando alterar o Estado
     document.getElementById('filtroEstado')?.addEventListener('change', () => {
         atualizarFiltroRegioes();
-        atualizarFiltroModelos();
-        processarEFiltarDados();
-    });
-
-    // Quando mudar o Modelo de Oferta
-    document.getElementById('filtroModelo')?.addEventListener('change', () => {
-        atualizarFiltroRegioes();
-        atualizarFiltroEstados();
         processarEFiltarDados();
     });
 }
@@ -117,12 +116,10 @@ function configurarOuvintesFiltros() {
 function atualizarFiltroRegioes() {
     const filtroRegiao = document.getElementById('filtroRegiao');
     const filtroEstado = document.getElementById('filtroEstado');
-    const filtroModelo = document.getElementById('filtroModelo');
-    
-    if (!filtroRegiao || !filtroEstado || !filtroModelo) return;
+
+    if (!filtroRegiao || !filtroEstado) return;
 
     const estadoSelecionado = filtroEstado.value;
-    const modeloSelecionado = filtroModelo.value;
     const regiaoAtual = filtroRegiao.value;
 
     let regioesDisponiveis = [];
@@ -136,12 +133,10 @@ function atualizarFiltroRegioes() {
 
         const estadoFormatadoUF = mapearNomeEstado(valorEstado);
         const regiaoFormatada = mapearNomeRegiao(valorRegiao);
-        const modeloOfertaDetectado = extrairModeloOferta(linha);
 
         const atendeEstado = estadoSelecionado === "" || estadoFormatadoUF === estadoSelecionado;
-        const atendeModelo = verificarCompatibilidadeModelo(modeloSelecionado, modeloOfertaDetectado);
 
-        if (atendeEstado && atendeModelo && regiaoFormatada && regiaoFormatada !== 'Outros') {
+        if (atendeEstado && regiaoFormatada && regiaoFormatada !== 'Outros') {
             regioesDisponiveis.push(regiaoFormatada);
         }
     }
@@ -168,12 +163,10 @@ function atualizarFiltroRegioes() {
 function atualizarFiltroEstados() {
     const filtroRegiao = document.getElementById('filtroRegiao');
     const filtroEstado = document.getElementById('filtroEstado');
-    const filtroModelo = document.getElementById('filtroModelo');
-    
-    if (!filtroRegiao || !filtroEstado || !filtroModelo) return;
+
+    if (!filtroRegiao || !filtroEstado) return;
 
     const regiaoSelecionada = filtroRegiao.value;
-    const modeloSelecionado = filtroModelo.value;
     const estadoAtual = filtroEstado.value;
 
     let estadosDisponiveis = [];
@@ -187,12 +180,10 @@ function atualizarFiltroEstados() {
 
         const estadoFormatadoUF = mapearNomeEstado(valorEstado);
         const regiaoFormatada = mapearNomeRegiao(valorRegiao);
-        const modeloOfertaDetectado = extrairModeloOferta(linha);
 
         const atendeRegiao = regiaoSelecionada === "" || regiaoFormatada === regiaoSelecionada;
-        const atendeModelo = verificarCompatibilidadeModelo(modeloSelecionado, modeloOfertaDetectado);
 
-        if (atendeRegiao && atendeModelo && estadoFormatadoUF && estadoFormatadoUF !== 'Outros') {
+        if (atendeRegiao && estadoFormatadoUF && estadoFormatadoUF !== 'Outros') {
             estadosDisponiveis.push(estadoFormatadoUF);
         }
     }
@@ -214,104 +205,6 @@ function atualizarFiltroEstados() {
 
 
 // ==========================================
-// 7. FILTRAGEM INTELIGENTE DINÂMICA DO SELETOR DE MODELOS DE OFERTA
-// ==========================================
-function atualizarFiltroModelos() {
-    const filtroRegiao = document.getElementById('filtroRegiao');
-    const filtroEstado = document.getElementById('filtroEstado');
-    const filtroModelo = document.getElementById('filtroModelo');
-    
-    if (!filtroRegiao || !filtroEstado || !filtroModelo) return;
-
-    const regiaoSelecionada = filtroRegiao.value;
-    const estadoSelecionado = filtroEstado.value;
-    const modeloAtual = filtroModelo.value;
-
-    let modelosDisponiveis = new Set();
-
-    for (let i = 1; i < DADOS_PLANILHA_ORIGINAL.length; i++) {
-        const linha = DADOS_PLANILHA_ORIGINAL[i];
-        if (!linha || linha.length === 0 || (linha.length === 1 && linha[0] === "")) continue;
-
-        const valorRegiao = COLUNAS_INDICES.regiao !== -1 ? linha[COLUNAS_INDICES.regiao] || "" : "";
-        const valorEstado = COLUNAS_INDICES.estado !== -1 ? linha[COLUNAS_INDICES.estado] || "" : "";
-
-        const estadoFormatadoUF = mapearNomeEstado(valorEstado);
-        const regiaoFormatada = mapearNomeRegiao(valorRegiao);
-        const modeloOfertaDetectado = extrairModeloOferta(linha);
-
-        const atendeRegiao = regiaoSelecionada === "" || regiaoFormatada === regiaoSelecionada;
-        const atendeEstado = estadoSelecionado === "" || estadoFormatadoUF === estadoSelecionado;
-
-        if (atendeRegiao && atendeEstado && modeloOfertaDetectado !== "Sem Oferta") {
-            if (modeloOfertaDetectado.toUpperCase().includes("EAD") && !modeloOfertaDetectado.toLowerCase().includes("semi")) {
-                modelosDisponiveis.add("EAD");
-            }
-            if (modeloOfertaDetectado.toLowerCase().includes("semi")) {
-                modelosDisponiveis.add("SEMI");
-            }
-        }
-    }
-
-    filtroModelo.innerHTML = '<option value="">Todos os Modelos de Oferta</option>';
-    
-    if (modelosDisponiveis.has("EAD")) {
-        const option = document.createElement('option');
-        option.value = "EAD";
-        option.textContent = "EAD";
-        filtroModelo.appendChild(option);
-    }
-    if (modelosDisponiveis.has("SEMI")) {
-        const option = document.createElement('option');
-        option.value = "SEMI";
-        option.textContent = "Semipresencial";
-        filtroModelo.appendChild(option);
-    }
-
-    if (modelosDisponiveis.has(modeloAtual)) {
-        filtroModelo.value = modeloAtual;
-    }
-}
-
-
-// ==========================================
-// 8. FUNÇÕES AUXILIARES DE TRATAMENTO DE MODELO DE OFERTA
-// ==========================================
-function extrairModeloOferta(linha) {
-    let modeloOfertaDetectado = "Sem Oferta";
-    linha.forEach((celula, idx) => {
-        if (idx !== COLUNAS_INDICES.nome && idx !== COLUNAS_INDICES.regiao && idx !== COLUNAS_INDICES.estado) {
-            const valorLimpo = celula.replace(/^"|"$/g, '').trim();
-            const valorMinusculo = valorLimpo.toLowerCase();
-            
-            if (valorMinusculo.includes('oferta') && !valorMinusculo.startsWith('sem')) {
-                const jaETemComplexo = modeloOfertaDetectado.toLowerCase().includes('semi') || modeloOfertaDetectado.toLowerCase().includes('presencial');
-                if (jaETemComplexo && !valorMinusculo.includes('semi') && !valorMinusculo.includes('presencial')) return; 
-                
-                if (valorMinusculo.includes('semi')) {
-                    modeloOfertaDetectado = "Oferta Semipresencial";
-                } else {
-                    modeloOfertaDetectado = valorLimpo;
-                }
-            }
-        }
-    });
-    return modeloOfertaDetectado;
-}
-
-function verificarCompatibilidadeModelo(filtroSelecionado, modeloDetectado) {
-    if (filtroSelecionado === "") return true;
-    if (filtroSelecionado === "EAD") {
-        return modeloDetectado.toUpperCase().includes("EAD") && !modeloDetectado.toLowerCase().includes("semi");
-    }
-    if (filtroSelecionado === "SEMI") {
-        return modeloDetectado.toLowerCase().includes("semi");
-    }
-    return false;
-}
-
-
-// ==========================================
 // 9. MONTAGEM DA ESTRUTURA VISUAL DA TABELA (CABEÇALHO)
 // ==========================================
 function montarCabecalhoTabela() {
@@ -319,7 +212,7 @@ function montarCabecalhoTabela() {
     if (!tr) return;
     tr.innerHTML = '';
     
-    const colunasExibidas = ["Nome", "Região", "Estado", "Modelo de Oferta"];
+    const colunasExibidas = ["Nome", "Região", "Estado"];
     
     colunasExibidas.forEach(nomeCol => {
         const th = document.createElement('th');
@@ -336,7 +229,6 @@ function montarCabecalhoTabela() {
 function processarEFiltarDados() {
     const valorFiltroRegiao = document.getElementById('filtroRegiao')?.value || "";
     const valorFiltroEstado = document.getElementById('filtroEstado')?.value || "";
-    const valorFiltroModelo = document.getElementById('filtroModelo')?.value || "";
 
     const contagemEstados = Object.keys(coordenadasEstados).reduce((acc, uf) => { acc[uf] = 0; return acc; }, {});
     const contagemRegioes = { 'Norte': 0, 'Nordeste': 0, 'Centro-Oeste': 0, 'Sudeste': 0, 'Sul': 0, 'Estrangeiro': 0 };
@@ -356,13 +248,11 @@ function processarEFiltarDados() {
 
         const estadoFormatado = mapearNomeEstado(valorEstado);
         const regiaoFormatada = mapearNomeRegiao(valorRegiao);
-        const modeloOfertaDetectado = extrairModeloOferta(ChatLinha);
 
         const atendeRegiao = valorFiltroRegiao === "" || regiaoFormatada === valorFiltroRegiao;
         const atendeEstado = valorFiltroEstado === "" || estadoFormatado === valorFiltroEstado;
-        const atendeModelo = verificarCompatibilidadeModelo(valorFiltroModelo, modeloOfertaDetectado);
 
-        if (atendeRegiao && atendeEstado && atendeModelo) {
+        if (atendeRegiao && atendeEstado) {
             if (contagemEstados[estadoFormatado] !== undefined) contagemEstados[estadoFormatado]++;
             if (contagemRegioes[regiaoFormatada] !== undefined) contagemRegioes[regiaoFormatada]++;
 
@@ -372,21 +262,14 @@ function processarEFiltarDados() {
                 const dadosExibicao = [
                     valorNome.replace(/^"|"$/g, '').trim(),
                     valorRegiao.replace(/^"|"$/g, '').trim(),
-                    estadoFormatado,
-                    modeloOfertaDetectado
+                    estadoFormatado
                 ];
 
-                dadosExibicao.forEach((texto, index) => {
+                dadosExibicao.forEach(texto => {
                     const td = document.createElement('td');
                     td.className = "py-2 text-truncate";
                     td.style.maxWidth = "220px";
                     td.textContent = texto;
-
-                    if (index === 3) {
-                        td.className += " fw-semibold";
-                        td.style.color = texto === "Sem Oferta" ? "#64748b" : "#10b981";
-                    }
-
                     tr.appendChild(td);
                 });
 
@@ -397,7 +280,7 @@ function processarEFiltarDados() {
     }
 
     if (linhasFiltradasParaTabela === 0 && tbody) {
-        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-muted">Nenhum polo encontrado para os filtros selecionados.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-muted">Nenhum polo encontrado para os filtros selecionados.</td></tr>`;
     }
 
     const badge = document.getElementById('totalPolosBadge');
@@ -578,6 +461,8 @@ function inicializarMapa(dados) {
     const mapa = L.map('mapaPolos', {
         zoomSnap: 0.25,
         scrollWheelZoom: false,
+        // No celular/tablet o dedo rola a página em vez de arrastar o mapa
+        dragging: !L.Browser.mobile,
         attributionControl: false
     }).setView([-14.235, -51.925], 4);
     mapaLeafletInstancia = mapa;
@@ -619,7 +504,6 @@ function inicializarMapa(dados) {
                             if (!filtroEstado || !total) return;
                             filtroEstado.value = filtroEstado.value === uf ? '' : uf;
                             atualizarFiltroRegioes();
-                            atualizarFiltroModelos();
                             processarEFiltarDados();
                         }
                     });
@@ -644,17 +528,14 @@ document.addEventListener('keydown', function(event) {
         
         const filtroRegiao = document.getElementById('filtroRegiao');
         const filtroEstado = document.getElementById('filtroEstado');
-        const filtroModelo = document.getElementById('filtroModelo');
 
         // Reseta todos os seletores para a opção nula padrão
         if (filtroRegiao) filtroRegiao.value = "";
         if (filtroEstado) filtroEstado.value = "";
-        if (filtroModelo) filtroModelo.value = "";
 
         // Redescreve as listas completas e limpa os gráficos
         atualizarFiltroRegioes();
         atualizarFiltroEstados();
-        atualizarFiltroModelos();
         processarEFiltarDados();
     }
 });
