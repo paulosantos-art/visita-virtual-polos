@@ -11,46 +11,114 @@
         :root {
             --primary-color: #2563eb;
             --primary-hover: #1d4ed8;
-            --bg-body: #f8fafc;
-            --text-dark: #1e293b;
+            --bg-body: #f4f6fb;
+            --text-dark: #0f172a;
             --text-muted: #64748b;
-            --border-color: #e2e8f0;
+            --border-color: #e5e9f2;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', system-ui, sans-serif; }
 
         body {
             background-color: var(--bg-body);
             color: var(--text-dark);
-            height: 100vh;
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: 1.1fr 1fr;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Painel da marca (esquerda) */
+        .brand-panel {
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(150deg, #0b1730 0%, #102347 55%, #1d4ed8 140%);
+            color: #ffffff;
+            padding: 48px 56px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .brand-panel::before,
+        .brand-panel::after {
+            content: "";
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.35), transparent 70%);
+        }
+
+        .brand-panel::before { width: 520px; height: 520px; right: -180px; top: -160px; }
+        .brand-panel::after { width: 380px; height: 380px; left: -140px; bottom: -140px; opacity: 0.6; }
+
+        .brand-top { display: flex; align-items: center; gap: 12px; position: relative; z-index: 1; }
+
+        .brand-mark {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            font-size: 1.2rem;
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.45);
+        }
+
+        .brand-top strong { display: block; font-size: 1.05rem; }
+        .brand-top span { font-size: 0.8rem; color: #9fb0cc; }
+
+        .brand-message { position: relative; z-index: 1; max-width: 440px; }
+        .brand-message h1 { font-size: 2.2rem; line-height: 1.2; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 16px; }
+        .brand-message p { color: #c3d0e6; font-size: 1rem; line-height: 1.6; margin-bottom: 28px; }
+
+        .brand-features { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+        .brand-features li { display: flex; align-items: center; gap: 12px; color: #dbe5f5; font-size: 0.92rem; }
+        .brand-features i {
+            width: 30px; height: 30px; border-radius: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            display: flex; align-items: center; justify-content: center;
+            color: #60a5fa; font-size: 0.85rem;
+        }
+
+        .brand-footer { position: relative; z-index: 1; font-size: 0.78rem; color: #7f93b5; }
+
+        /* Formulário (direita) */
+        .form-panel {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 24px;
         }
 
         .login-container {
             background: #ffffff;
             padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+            border-radius: 18px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 40px rgba(15, 23, 42, 0.08);
             width: 100%;
             max-width: 420px;
             border: 1px solid var(--border-color);
         }
 
         .header-box {
-            text-align: center;
+            text-align: left;
         }
 
         .brand-logo {
-            height: 50px;
-            margin-bottom: 24px;
+            height: 44px;
+            margin-bottom: 28px;
             object-fit: contain;
         }
 
-        h2 { font-size: 1.5rem; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
-        p { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 28px; }
+        h2 { font-size: 1.5rem; font-weight: 700; color: var(--text-dark); margin-bottom: 6px; letter-spacing: -0.02em; }
+        p { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 28px; }
+
+        @media (max-width: 900px) {
+            body { grid-template-columns: 1fr; }
+            .brand-panel { display: none; }
+            .header-box { text-align: center; }
+        }
 
         /* Estilização do Formulário Manual */
         .form-group {
@@ -81,16 +149,20 @@
 
         .form-control {
             width: 100%;
-            padding: 12px 14px 12px 42px;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
+            height: 48px;
+            padding: 0 14px 0 42px;
+            border: 1px solid var(--border-color);
+            background-color: #f8fafc;
+            border-radius: 10px;
             font-size: 0.95rem;
+            color: var(--text-dark);
             transition: all 0.2s ease;
             outline: none;
         }
 
         .form-control:focus {
             border-color: var(--primary-color);
+            background-color: #ffffff;
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
         }
 
@@ -100,7 +172,8 @@
             background-color: var(--primary-color);
             color: #ffffff;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
             font-size: 0.95rem;
             font-weight: 600;
             cursor: pointer;
@@ -132,11 +205,36 @@
 </head>
 <body>
 
+    <!-- PAINEL DA MARCA (Esquerda) -->
+    <aside class="brand-panel">
+        <div class="brand-top">
+            <div class="brand-mark"><i class="fa-solid fa-graduation-cap"></i></div>
+            <div>
+                <strong>Visita Virtual</strong>
+                <span>Polos UniFECAF</span>
+            </div>
+        </div>
+
+        <div class="brand-message">
+            <h1>Acompanhe as visitas a todos os polos em um só lugar.</h1>
+            <p>Registre as avaliações, acompanhe a cobertura e gere relatórios por região.</p>
+            <ul class="brand-features">
+                <li><i class="fa-solid fa-building-columns"></i> Lista de polos com status de visita</li>
+                <li><i class="fa-solid fa-map-location-dot"></i> Mapa da distribuição dos polos por estado</li>
+                <li><i class="fa-solid fa-file-lines"></i> Relatórios por região prontos para imprimir</li>
+            </ul>
+        </div>
+
+        <div class="brand-footer">© UniFECAF · Regulatório</div>
+    </aside>
+
+    <!-- FORMULÁRIO (Direita) -->
+    <main class="form-panel">
     <div class="login-container">
         <div class="header-box">
             <img src="logo-unifecaf.png.png" alt="Logo UniFECAF" class="brand-logo">
             <h2>Acesso ao Painel</h2>
-            <p>Insira suas credenciais administrativas</p>
+            <p>Entre com seu e-mail corporativo para continuar</p>
         </div>
 
         <!-- FORMULÁRIO INTEGRADO AO SEU SCRIPT.JS -->
@@ -167,6 +265,7 @@
             <i class="fa-solid fa-circle-exclamation"></i> E-mail ou senha incorretos!
         </div>
     </div>
+    </main>
 
     <!-- Vinculação ao script do painel principal para rodar as validações -->
 <script>
