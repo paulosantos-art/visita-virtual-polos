@@ -115,15 +115,6 @@
                             <option value="">Todos os Estados</option>
                         </select>
                     </div>
-
-                    <div class="filter-block">
-                        <label for="filtroModelo" class="filter-label">Modelo de Oferta</label>
-                        <select id="filtroModelo" class="filter-select">
-                            <option value="">Todos os Modelos de Oferta</option>
-                            <option value="EAD">EAD</option>
-                            <option value="SEMI">Semipresencial</option>
-                        </select>
-                    </div>
                 </div>
 
                 <!-- Grid com Mapa e Gráfico -->
@@ -173,6 +164,14 @@
 
         </div>
     </div>
+
+    <!-- Login obrigatório (Firebase Authentication) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="auth.js"></script>
+
+    <script src="menu-mobile.js"></script>
 
     <!-- SCRIPT EXTERNO QUE GERENCIA A LÓGICA DO DASHBOARD -->
     <script src="dashboard.js"></script>
