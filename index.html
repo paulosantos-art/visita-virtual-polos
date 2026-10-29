@@ -142,7 +142,7 @@
 
                     <div class="dropdowns-grid">
                         <div class="filter-group">
-                            <label for="select-regiao">Região</label>
+                            <label for="input-regiao">Região</label>
                             <select id="select-regiao">
                                 <option value="TODAS">Todas as Regiões</option>
                                 <option value="Norte">Norte</option>
@@ -155,7 +155,7 @@
                         </div>
 
                         <div class="filter-group">
-                            <label for="select-estado">Estado</label>
+                            <label for="input-estado">Estado</label>
                             <select id="select-estado">
                                 <option value="TODOS">Todos os Estados</option>
                             </select>
@@ -209,27 +209,19 @@
     <!-- =================================================== -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyAhuaxlZCcWOAXMXI6ntwXEUMUT14gy1QU",
-            authDomain: "painel-polos.firebaseapp.com",
-            databaseURL: "https://painel-polos-default-rtdb.firebaseio.com",
-            projectId: "painel-polos",
-            storageBucket: "painel-polos.firebasestorage.app",
-            messagingSenderId: "259211070710",
-            appId: "1:259211070710:web:5447694b4bf93bae7630d7",
-            measurementId: "G-1LBZG5HYQB"
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        window.database = firebase.database();
-    </script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="auth.js"></script>
 
     <!-- SweetAlert2 JS -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Gera o PDF do relatório direto no navegador (sem abrir a impressora) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
-    <!-- Script de Comportamento -->
+    <!-- Scripts de Comportamento (base e relatório são compartilhados com a Consulta) -->
+    <script src="menu-mobile.js"></script>
+    <script src="polos-base.js"></script>
+    <script src="relatorio.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
