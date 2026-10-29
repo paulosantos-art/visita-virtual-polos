@@ -15,55 +15,58 @@
 
     <!-- SIDEBAR FIXA (Esquerda) -->
     <aside class="sidebar">
-        <!-- Navegação Principal -->
-        <nav class="menu-links">
-            <div class="menu-header">
-                <i class="fa-solid fa-chart-pie"></i>
-                <span>Navegação</span>
+        <div>
+            <div class="sidebar-brand">
+                <div class="brand-mark"><i class="fa-solid fa-graduation-cap"></i></div>
+                <div class="brand-text">
+                    <strong>Visita Virtual</strong>
+                    <span>Polos UniFECAF</span>
+                </div>
             </div>
 
-            <div class="menu-subtitle">Painéis</div>
+            <!-- Navegação Principal -->
+            <nav class="menu-links">
+                <div class="menu-subtitle">Painéis</div>
 
-            <a href="index.html" class="btn-nav active">
-                <i class="fa-solid fa-hotel icon-blue"></i>
-                <span>Lista de Polos</span>
-            </a>
+                <a href="index.html" class="btn-nav active">
+                    <i class="fa-solid fa-building-columns icon-blue"></i>
+                    <span>Lista de Polos</span>
+                </a>
 
-            <a href="agenda.html" class="btn-nav">
-                <i class="fa-solid fa-calendar-days icon-blue"></i>
-                <span>Agenda de Visitas</span>
-            </a>
+                <a href="dashboard.html" class="btn-nav">
+                    <i class="fa-solid fa-chart-pie icon-blue"></i>
+                    <span>Dashboard</span>
+                </a>
+            </nav>
+        </div>
 
-            <a href="dashboard.html" class="btn-nav">
-                <i class="fa-solid fa-earth-americas icon-green"></i>
-                <span>Dashboard</span>
-            </a>
-        </nav>
-        
         <!-- Rodapé da Sidebar: Vídeos + Relatórios + Sair -->
         <div class="sidebar-footer">
             <div class="utility-links">
-                <a href="https://drive.google.com/drive/folders/1zdMIRPPFk3roA30NlwD_OZmtRX4cHbLE" 
-                   target="_blank" 
+                <div class="menu-subtitle">Links úteis</div>
+                <a href="https://drive.google.com/drive/folders/1zdMIRPPFk3roA30NlwD_OZmtRX4cHbLE"
+                   target="_blank"
                    rel="noopener noreferrer"
                    class="btn-nav">
                      <i class="fa-solid fa-folder-open icon-green"></i>
                      <span>Vídeos das Visitas</span>
+                     <i class="fa-solid fa-arrow-up-right-from-square"></i>
                 </a>
 
-                <a href="https://docs.google.com/spreadsheets/d/1_8l39f0R50RvmeFiSqd3_lXwWaVN_YipF-JHZe-hVEc/edit?gid=0#gid=0" 
-                   target="_blank" 
+                <a href="https://docs.google.com/spreadsheets/d/1_8l39f0R50RvmeFiSqd3_lXwWaVN_YipF-JHZe-hVEc/edit?gid=0#gid=0"
+                   target="_blank"
                    rel="noopener noreferrer"
                    class="btn-nav">
                      <i class="fa-solid fa-table icon-green"></i>
                      <span>Relatórios</span>
+                     <i class="fa-solid fa-arrow-up-right-from-square"></i>
                 </a>
             </div>
 
             <hr class="sidebar-divider">
 
             <button id="btn-sair" class="btn-sair">
-                <i class="fa-solid fa-right-from-bracket"></i> 
+                <i class="fa-solid fa-right-from-bracket"></i>
                 <span>Sair do Painel</span>
             </button>
         </div>
@@ -72,18 +75,21 @@
     <!-- CONTEÚDO PRINCIPAL (Direita) -->
     <div class="main-content">
         <div class="container">
-            
+
             <header class="main-header">
                 <div class="logo-area">
                     <div class="icon-wrapper">
-                        <i class="fa-solid fa-graduation-cap"></i>
+                        <i class="fa-solid fa-building-columns"></i>
                     </div>
                     <div>
                         <h1>Visita Virtual dos Polos</h1>
+                        <p class="page-subtitle">Acompanhe e registre as visitas a cada polo</p>
                     </div>
                 </div>
-                
-                <img src="logo-unifecaf.png.png" alt="Logo UniFECAF" class="brand-logo">
+
+                <div class="brand-logo-wrapper">
+                    <img src="logo-unifecaf.png.png" alt="Logo UniFECAF" class="brand-logo">
+                </div>
             </header>
 
             <!-- PAINEL DA LISTA DOS POLOS -->
@@ -91,38 +97,47 @@
                 <!-- Cards Informativos -->
                 <section class="cards-grid">
                     <div class="card card-total">
-                        <div class="card-icon"><i class="fa-solid fa-hotel"></i></div>
+                        <div class="card-icon"><i class="fa-solid fa-building-columns"></i></div>
                         <div class="card-info">
                             <span class="card-number" id="txt-total-polos">0</span>
-                            <span class="card-label">Total de Polos Ativos</span>
+                            <span class="card-label">Total de Polos</span>
                         </div>
-                        <div class="card-border-indicator border-total"></div>
-                    </div>
-                    
-                    <div class="card card-ead">
-                        <div class="card-icon"><i class="fa-solid fa-laptop-code"></i></div>
-                        <div class="card-info">
-                            <span class="card-number" id="txt-total-ead">0</span>
-                            <span class="card-label">Polos EAD</span>
-                        </div>
-                        <div class="card-border-indicator border-ead"></div>
                     </div>
 
-                    <div class="card card-semi">
-                        <div class="card-icon"><i class="fa-solid fa-user-group"></i></div>
+                    <div class="card card-done">
+                        <div class="card-icon"><i class="fa-solid fa-circle-check"></i></div>
                         <div class="card-info">
-                            <span class="card-number" id="txt-total-semi">0</span>
-                            <span class="card-label">Polos Semipresenciais</span>
+                            <span class="card-number" id="txt-card-concluidos">0</span>
+                            <span class="card-label">Polos Visitados</span>
                         </div>
-                        <div class="card-border-indicator border-semi"></div>
+                    </div>
+
+                    <div class="card card-pending">
+                        <div class="card-icon"><i class="fa-solid fa-hourglass-half"></i></div>
+                        <div class="card-info">
+                            <span class="card-number" id="txt-card-pendentes">0</span>
+                            <span class="card-label">Polos Pendentes</span>
+                        </div>
+                    </div>
+
+                    <div class="card card-progress">
+                        <div class="card-icon"><i class="fa-solid fa-chart-line"></i></div>
+                        <div class="card-info">
+                            <span class="card-number" id="txt-card-cobertura">0%</span>
+                            <div class="progress-track"><div class="progress-fill" id="barra-cobertura"></div></div>
+                            <span class="card-label">Cobertura das Visitas</span>
+                        </div>
                     </div>
                 </section>
 
                 <!-- Filtros e Busca -->
                 <section class="filter-section">
-                    <div class="search-box">
-                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                        <input type="text" id="input-busca" placeholder="Digite o nome do polo para pesquisar...">
+                    <div class="filter-group">
+                        <label for="input-busca">Buscar</label>
+                        <div class="search-box">
+                            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                            <input type="text" id="input-busca" placeholder="Digite o nome do polo...">
+                        </div>
                     </div>
 
                     <div class="dropdowns-grid">
@@ -145,22 +160,6 @@
                                 <option value="TODOS">Todos os Estados</option>
                             </select>
                         </div>
-
-                        <div class="filter-group">
-                            <label for="select-modelo">Modelo de Oferta</label>
-                            <select id="select-modelo">
-                                <option value="TODOS">Todos os Modelos de Oferta</option>
-                                <option value="EAD">EAD</option>
-                                <option value="Semipresencial">Semipresencial</option>
-                            </select>
-                        </div>
-
-                        <div class="filter-group">
-                            <label for="selectCurso">Filtrar por Curso</label>
-                            <select id="selectCurso">
-                                <option value="TODOS">Todos os Cursos</option>
-                            </select>
-                        </div>
                     </div>
                 </section>    
                 
@@ -173,6 +172,12 @@
                             <span class="badge-completed">
                                 <span id="txt-badge-concluidos">0</span>
                             </span>
+                            <span class="badge-pending">
+                                <span id="txt-badge-pendentes">0</span>
+                            </span>
+                            <button id="btn-relatorio" class="btn-relatorio" title="Gerar relatório por região">
+                                <i class="fa-solid fa-file-lines"></i> Gerar Relatório
+                            </button>
                         </div>
                     </div>
                     
@@ -180,11 +185,11 @@
                         <table class="polos-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 50px;"></th> 
-                                    <th>Região</th>
-                                    <th>UF</th>
+                                    <th style="width: 48px;"></th>
                                     <th>Nome do Polo</th>
-                                    <th>Modelo de Oferta</th>
+                                    <th>UF</th>
+                                    <th>Região</th>
+                                    <th style="width: 140px;">Status</th>
                                 </tr>
                             </thead>
                             <tbody id="tabela-polos-body">
@@ -192,6 +197,7 @@
                             </tbody>
                         </table>
                     </div>
+                    <div id="paginacao-container" class="pagination"></div>
                 </section>
             </div>
 
