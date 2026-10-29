@@ -491,18 +491,22 @@ function inicializarGrafico(dados) {
             datasets: [{
                 label: 'Quantidade de Polos',
                 data: valores,
-                backgroundColor: '#10b981',
-                borderRadius: 6,
+                backgroundColor: '#2563eb',
+                hoverBackgroundColor: '#1d4ed8',
+                borderRadius: 8,
                 barThickness: 34
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: {
+                legend: { display: false },
+                tooltip: { backgroundColor: '#0f172a', padding: 10, cornerRadius: 8, titleFont: { family: 'Inter' }, bodyFont: { family: 'Inter' } }
+            },
             scales: {
-                y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { color: '#64748b' } },
-                x: { grid: { display: false }, ticks: { color: '#1e293b', font: { weight: '600' } } }
+                y: { beginAtZero: true, border: { display: false }, grid: { color: '#eef1f6' }, ticks: { color: '#64748b', font: { family: 'Inter' } } },
+                x: { border: { display: false }, grid: { display: false }, ticks: { color: '#0f172a', font: { family: 'Inter', weight: '600' } } }
             }
         }
     });
@@ -510,8 +514,57 @@ function inicializarGrafico(dados) {
 
 
 // ==========================================
-// 15. PLOTAGEM E RENDERIZAÇÃO DOS PONTOS DO MAPA (LEAFLET)
+// 15. MAPA DO BRASIL POR ESTADO (LEAFLET + GEOJSON DOS ESTADOS)
 // ==========================================
+const GEOJSON_ESTADOS_URL = 'https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson';
+const ESCALA_CORES_MAPA = ['#dbeafe', '#93c5fd', '#60a5fa', '#3b82f6', '#1d4ed8', '#1e3a8a'];
+const COR_ESTADO_SEM_POLO = '#f1f5f9';
+let geojsonEstadosCache = null;
+
+// Baixa o contorno dos estados uma única vez (os filtros reaproveitam)
+async function carregarGeojsonEstados() {
+    if (!geojsonEstadosCache) {
+        const resposta = await fetch(GEOJSON_ESTADOS_URL);
+        if (!resposta.ok) throw new Error(`Erro ao carregar o mapa: ${resposta.status}`);
+        geojsonEstadosCache = await resposta.json();
+    }
+    return geojsonEstadosCache;
+}
+
+// Faixa de cor do estado: divide de 1 até o maior total em partes iguais
+function indiceFaixaCor(total, maximo) {
+    return Math.min(ESCALA_CORES_MAPA.length - 1, Math.ceil((total * ESCALA_CORES_MAPA.length) / maximo) - 1);
+}
+
+function corPorQuantidade(total, maximo) {
+    if (!total) return COR_ESTADO_SEM_POLO;
+    return ESCALA_CORES_MAPA[indiceFaixaCor(total, maximo)];
+}
+
+function criarLegendaMapa(maximo) {
+    const legenda = L.control({ position: 'bottomright' });
+
+    legenda.onAdd = () => {
+        const div = L.DomUtil.create('div', 'map-legend');
+        let html = '<strong>Polos por estado</strong>';
+
+        const n = ESCALA_CORES_MAPA.length;
+        for (let i = 0; i < n; i++) {
+            const de = Math.floor((maximo * i) / n) + 1;
+            const ate = Math.floor((maximo * (i + 1)) / n);
+            if (de > ate) continue; // faixa vazia quando há poucos polos
+            const rotulo = de === ate ? `${de}` : `${de} – ${ate}`;
+            html += `<div><i style="background:${ESCALA_CORES_MAPA[i]}"></i>${rotulo}</div>`;
+        }
+        html += `<div><i style="background:${COR_ESTADO_SEM_POLO}"></i>Sem polos</div>`;
+
+        div.innerHTML = html;
+        return div;
+    };
+
+    return legenda;
+}
+
 function inicializarMapa(dados) {
     const container = document.getElementById('mapaPolos');
     if (!container) return;
@@ -522,33 +575,64 @@ function inicializarMapa(dados) {
         mapaLeafletInstancia = null;
     }
 
-    mapaLeafletInstancia = L.map('mapaPolos').setView([-14.235, -51.925], 4);
+    const mapa = L.map('mapaPolos', {
+        zoomSnap: 0.25,
+        scrollWheelZoom: false,
+        attributionControl: false
+    }).setView([-14.235, -51.925], 4);
+    mapaLeafletInstancia = mapa;
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '© OpenStreetMap | © CartoDB'
-    }).addTo(mapaLeafletInstancia);
+    const maximo = Math.max(1, ...Object.entries(dados)
+        .filter(([uf]) => uf !== 'Estrangeiro')
+        .map(([, total]) => total));
 
-    Object.keys(dados).forEach(uf => {
-        const total = dados[uf];
-        const coordenadas = coordenadasEstados[uf];
+    carregarGeojsonEstados()
+        .then(geojson => {
+            // Se os filtros mudaram enquanto o mapa carregava, este mapa já foi descartado
+            if (mapaLeafletInstancia !== mapa) return;
 
-        if (total > 0 && coordenadas) {
-            const raioProporcional = Math.max(total * 2500, 25000); 
+            const camadaEstados = L.geoJSON(geojson, {
+                style: feature => ({
+                    fillColor: corPorQuantidade(dados[feature.properties.sigla] || 0, maximo),
+                    fillOpacity: 1,
+                    color: '#ffffff',
+                    weight: 1.2
+                }),
+                onEachFeature: (feature, layer) => {
+                    const uf = feature.properties.sigla;
+                    const total = dados[uf] || 0;
 
-            L.circle(coordenadas, {
-                color: '#10b981',
-                fillColor: '#10b981',
-                fillOpacity: 0.5,
-                weight: 2,
-                radius: raioProporcional
-            })
-            .addTo(mapaLeafletInstancia)
-            .bindPopup(`<div style="font-family: 'Inter', sans-serif; color: #1e293b;">
-                            <b style="font-size: 14px;">Estado: ${uf}</b><br>
-                            <span style="font-size: 13px; color: #10b981; font-weight: 600;">${total} Polos Ativos</span>
-                        </div>`);
-        }
-    });
+                    layer.bindTooltip(
+                        `<strong>${feature.properties.name} (${uf})</strong><br>${total} ${total === 1 ? 'polo' : 'polos'}`,
+                        { sticky: true, className: 'map-tooltip' }
+                    );
+
+                    layer.on({
+                        mouseover: e => {
+                            e.target.setStyle({ weight: 2.5, color: '#0f172a' });
+                            e.target.bringToFront();
+                        },
+                        mouseout: e => camadaEstados.resetStyle(e.target),
+                        // Clicar em um estado com polos aplica o filtro de Estado
+                        click: () => {
+                            const filtroEstado = document.getElementById('filtroEstado');
+                            if (!filtroEstado || !total) return;
+                            filtroEstado.value = filtroEstado.value === uf ? '' : uf;
+                            atualizarFiltroRegioes();
+                            atualizarFiltroModelos();
+                            processarEFiltarDados();
+                        }
+                    });
+                }
+            }).addTo(mapa);
+
+            mapa.fitBounds(camadaEstados.getBounds(), { padding: [10, 10] });
+            criarLegendaMapa(maximo).addTo(mapa);
+        })
+        .catch(erro => {
+            console.error('Erro ao carregar o mapa dos estados:', erro);
+            container.innerHTML = '<div class="empty-state">Não foi possível carregar o mapa do Brasil. Verifique a conexão e recarregue a página.</div>';
+        });
 }
 
 
