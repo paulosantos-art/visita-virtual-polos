@@ -12,18 +12,20 @@ if (localStorage.getItem('painel_polos_logado') !== 'true') {
 const SPREADSHEET_ID = '1km9rpUas9U3V4zqRqCp4AxxR_srUphtlckBuGRF7lqQ';
 
 const SPREADSHEET_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv`;
-const CURSOS_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=P%C3%A1gina1`;
 const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxH-7NvAu4PbBPBpEWd5UGCUApnpVlMiAeTLsZcoL_DOiF3MKDnuVidCPHzDZVsUgns/exec';
 
 let database = [];
-let baseCursosPolos = {}; 
-let listaTodosCursos = []; 
 let cachePolosFirebase = {}; // Armazena o estado do Firebase em tempo real
 
 // Variáveis de Paginação e Filtro de Concluídos
 let paginaAtual = 1;
 const itensPorPagina = 10;
 let apenasConcluidos = false;
+let apenasPendentes = false;
+
+// Última lista exibida (usada para atualizar os indicadores após salvar um polo)
+let ultimosDadosFiltrados = [];
+let ultimosDadosBase = [];
 
 // Função utilitária para transformar o nome do polo em uma chave válida no Firebase
 function sanitizarChavePolo(nomePolo) {
@@ -37,17 +39,19 @@ function sanitizarChavePolo(nomePolo) {
 const inputBusca = document.getElementById('input-busca');
 const selectRegiao = document.getElementById('select-regiao');
 const selectEstado = document.getElementById('select-estado');
-const selectModelo = document.getElementById('select-modelo');
-const selectCurso = document.getElementById('selectCurso'); 
 const tabelaBody = document.getElementById('tabela-polos-body');
 const noResultsDiv = document.getElementById('no-results');
 
 const txtTotalPolos = document.getElementById('txt-total-polos');
-const txtTotalEad = document.getElementById('txt-total-ead');
-const txtTotalSemi = document.getElementById('txt-total-semi');
+const txtCardConcluidos = document.getElementById('txt-card-concluidos');
+const txtCardPendentes = document.getElementById('txt-card-pendentes');
+const txtCardCobertura = document.getElementById('txt-card-cobertura');
+const barraCobertura = document.getElementById('barra-cobertura');
 const txtBadgeTotal = document.getElementById('txt-badge-total');
 const btnAgenda = document.getElementById('btn-agenda');
 const txtBadgeConcluidos = document.getElementById('txt-badge-concluidos');
+const txtBadgePendentes = document.getElementById('txt-badge-pendentes');
+const btnRelatorio = document.getElementById('btn-relatorio');
 const btnSair = document.getElementById('btn-sair'); 
 
 // =========================================================================
@@ -57,7 +61,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Escuta sincronizada em Tempo Real com o Firebase Database
     sincronizarFirebaseEmTempoReal();
 
-    await carregarCursosDaPlanilha();
     await carregarDadosDaPlanilha();
 
     const resetPageAndFilter = () => { paginaAtual = 1; filtrarEDesenhar(); };
@@ -65,22 +68,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (inputBusca) inputBusca.addEventListener('input', resetPageAndFilter);
     if (btnSair) btnSair.addEventListener('click', efetuarLogout);
     
-    // Configura o Botão de Concluídos
+    // Configura os Botões de Concluídos e Pendentes (filtros mutuamente exclusivos)
     if (txtBadgeConcluidos) {
         txtBadgeConcluidos.style.cursor = 'pointer';
         txtBadgeConcluidos.title = 'Clique para filtrar apenas os polos concluídos';
         txtBadgeConcluidos.addEventListener('click', () => {
             apenasConcluidos = !apenasConcluidos;
-            
-            // Destaque visual quando ativo
-            if (apenasConcluidos) {
-                txtBadgeConcluidos.style.outline = '2px solid #10b981';
-                txtBadgeConcluidos.style.boxShadow = '0 0 8px rgba(16, 185, 129, 0.4)';
-            } else {
-                txtBadgeConcluidos.style.outline = 'none';
-                txtBadgeConcluidos.style.boxShadow = 'none';
-            }
-            
+            if (apenasConcluidos) apenasPendentes = false;
+            atualizarDestaqueFiltrosStatus();
+            resetPageAndFilter();
+        });
+    }
+
+    if (txtBadgePendentes) {
+        txtBadgePendentes.style.cursor = 'pointer';
+        txtBadgePendentes.title = 'Clique para filtrar apenas os polos pendentes';
+        txtBadgePendentes.addEventListener('click', () => {
+            apenasPendentes = !apenasPendentes;
+            if (apenasPendentes) apenasConcluidos = false;
+            atualizarDestaqueFiltrosStatus();
             resetPageAndFilter();
         });
     }
@@ -102,9 +108,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (btnAgenda) {
         btnAgenda.addEventListener('click', abrirAgendaGlobal);
     }
-    
-    if (selectModelo) selectModelo.addEventListener('change', resetPageAndFilter);
-    if (selectCurso) selectCurso.addEventListener('change', resetPageAndFilter); 
+
+    if (btnRelatorio) {
+        btnRelatorio.addEventListener('click', gerarRelatorioPorRegiao);
+    }
 
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' || event.key === 'Esc') {
@@ -114,15 +121,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (selectRegiao) selectRegiao.selectedIndex = 0;
             popularEstadosBaseadoEmRegiao(); 
             if (selectEstado) selectEstado.selectedIndex = 0;
-            if (selectModelo) selectModelo.selectedIndex = 0;
-            if (selectCurso) selectCurso.selectedIndex = 0; 
             
-            // Reset do filtro de concluídos no ESC
+            // Reset dos filtros de concluídos/pendentes no ESC
             apenasConcluidos = false;
-            if (txtBadgeConcluidos) {
-                txtBadgeConcluidos.style.outline = 'none';
-                txtBadgeConcluidos.style.boxShadow = 'none';
-            }
+            apenasPendentes = false;
+            atualizarDestaqueFiltrosStatus();
 
             document.querySelectorAll('.detail-row').forEach(row => row.style.display = 'none');
             document.querySelectorAll('.polo-row').forEach(row => row.classList.remove('expanded'));
@@ -130,6 +133,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });     
 });
+
+// Destaque visual dos botões de Concluídos/Pendentes quando ativos
+function atualizarDestaqueFiltrosStatus() {
+    if (txtBadgeConcluidos) {
+        txtBadgeConcluidos.style.outline = apenasConcluidos ? '2px solid #10b981' : 'none';
+        txtBadgeConcluidos.style.boxShadow = apenasConcluidos ? '0 0 8px rgba(16, 185, 129, 0.4)' : 'none';
+    }
+    if (txtBadgePendentes) {
+        txtBadgePendentes.style.outline = apenasPendentes ? '2px solid #f59e0b' : 'none';
+        txtBadgePendentes.style.boxShadow = apenasPendentes ? '0 0 8px rgba(245, 158, 11, 0.4)' : 'none';
+    }
+}
 
 // Sincronizador ativo do Firebase (Atualiza as telas de todos os usuários em tempo real)
 
@@ -155,57 +170,8 @@ function efetuarLogout() {
 }
 
 // =========================================================================
-// 4. PROCESSAR CURSOS
+// 4. LEITURA DO CSV
 // =========================================================================
-async function carregarCursosDaPlanilha() {
-    try {
-        const resposta = await fetch(CURSOS_URL);
-        if (!resposta.ok) throw new Error("Não foi possível alcançar os cursos.");
-        const csvTexto = await resposta.text();
-        
-        const lines = processarLinhasCSV(csvTexto);
-        if (lines.length < 2) return;
-
-        const cabecalho = lines[0];
-        listaTodosCursos = cabecalho.slice(4).map(c => c.trim()).filter(c => c !== "");
-        listaTodosCursos.sort();
-
-        popularSelectCursos();
-
-        for (let i = 1; i < lines.length; i++) {
-            const colunas = lines[i];
-            if (colunas.length < 3) continue;
-
-            const nomePolo = colunas[2] ? colunas[2].trim() : '';
-            if (!nomePolo) continue;
-
-            baseCursosPolos[nomePolo] = {};
-
-            for (let j = 4; j < colunas.length; j++) {
-                const nomeCurso = cabecalho[j] ? cabecalho[j].trim() : '';
-                const statusOferta = colunas[j] ? colunas[j].trim() : 'Sem Oferta';
-                
-                if (nomeCurso) {
-                    baseCursosPolos[nomePolo][nomeCurso] = statusOferta;
-                }
-            }
-        }
-    } catch (erro) {
-        console.error("Aviso de Cursos:", erro);
-    }
-}
-
-function popularSelectCursos() {
-    if (!selectCurso) return;
-    selectCurso.innerHTML = '<option value="TODOS">Todos os Cursos</option>';
-    listaTodosCursos.forEach(curso => {
-        const option = document.createElement('option');
-        option.value = curso;
-        option.textContent = curso;
-        selectCurso.appendChild(option);
-    });
-}
-
 function processarLinhasCSV(text) {
     let lines = [];
     let row = [""];
@@ -244,10 +210,9 @@ async function carregarDadosDaPlanilha() {
     if (tabelaBody) {
         tabelaBody.innerHTML = `
             <tr>
-                <td colspan="5" style="text-align: center; padding: 60px;">
-                    <i class="fa-solid fa-spinner fa-spin" style="font-size: 2.5rem; color: var(--primary-color);"></i>
-                    <br><br>
-                    <span style="color: var(--text-muted); font-weight: 500;">Carregando polos diretamente da planilha...</span>
+                <td colspan="5" class="empty-state">
+                    <i class="fa-solid fa-spinner fa-spin"></i>
+                    Carregando polos diretamente da planilha...
                 </td>
             </tr>
         `;
@@ -298,12 +263,10 @@ function processarCsvProfissional(text) {
     let idxNome = headers.findIndex(h => h.includes('nome') || h.includes('polo') || h.includes('cidade'));
     let idxRegiao = headers.findIndex(h => h.includes('regia'));
     let idxEstado = headers.findIndex(h => h.includes('estado'));
-    let idxModelo = headers.findIndex(h => h.includes('model') || h.includes('ensino') || h.includes('oferta'));
 
     if (idxNome === -1) idxNome = 0;
     if (idxRegiao === -1) idxRegiao = 1;
     if (idxEstado === -1) idxEstado = 2;
-    if (idxModelo === -1) idxModelo = 3;
 
     const parsedData = [];
 
@@ -315,42 +278,13 @@ function processarCsvProfissional(text) {
         const regiao = cells[idxRegiao] ? cells[idxRegiao].trim() : 'Outros';
         
         let estado = cells[idxEstado] ? cells[idxEstado].trim() : 'Não Definido';
-        estado = estado.replace(/\s*\(.*?\)\s*/g, '').trim(); 
-
-        let temEAD = false;
-        let temSemi = false;
-
-        cells.forEach((celula, idx) => {
-            if (idx !== idxNome && idx !== idxRegiao && idx !== idxEstado) {
-                const valorMinusculo = celula.toLowerCase();
-                if (valorMinusculo.includes('oferta') && !valorMinusculo.startsWith('sem')) {
-                    if (valorMinusculo.includes('semi')) {
-                        temSemi = true;
-                    } else {
-                        temEAD = true;
-                    }
-                }
-            }
-        });
-
-        let modeloClassificado = 'EAD';
-        if (temSemi) {
-            modeloClassificado = 'Semipresencial';
-        } else if (temEAD) {
-            modeloClassificado = 'EAD';
-        } else {
-            const modeloOriginal = cells[idxModelo] ? cells[idxModelo].trim().toUpperCase() : 'EAD';
-            if (modeloOriginal.includes('SEMI') || modeloOriginal.includes('PRESENCIAL')) {
-                modeloClassificado = 'Semipresencial';
-            }
-        }
+        estado = estado.replace(/\s*\(.*?\)\s*/g, '').trim();
 
         if (nome) {
             parsedData.push({
                 Nome: nome,
                 Regiao: regiao,
-                Estado: estado,
-                Modelo: modeloClassificado
+                Estado: estado
             });
         }
     }
@@ -425,11 +359,44 @@ function toggleNotaAmbiente(checkboxId, boxId) {
         if (chk.checked) {
             box.style.display = 'block';
             const txt = box.querySelector('textarea');
-            if (txt) txt.focus();
+            if (txt) {
+                ajustarAlturaTextarea(txt);
+                txt.focus();
+            }
         } else {
             box.style.display = 'none';
         }
     }
+}
+
+// Faz a caixa de texto crescer até caber todo o conteúdo (sem barra de rolagem)
+function ajustarAlturaTextarea(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = `${textarea.scrollHeight + 2}px`;
+}
+
+// Ajusta a altura enquanto o usuário digita nas anotações do polo
+document.addEventListener('input', (event) => {
+    if (event.target.matches('.polo-details-box textarea')) {
+        ajustarAlturaTextarea(event.target);
+    }
+});
+
+// Ambientes avaliados em cada polo (chave usada no Firebase, nome exibido e ícone)
+const AMBIENTES_POLO = [
+    { chave: 'recepcao', nome: 'Recepção', icone: 'fa-bell-concierge' },
+    { chave: 'coordenacao', nome: 'Sala de Coordenação', icone: 'fa-user-tie' },
+    { chave: 'estudos', nome: 'Sala de Estudos', icone: 'fa-book-open' },
+    { chave: 'informatica', nome: 'Laboratório de Informática', icone: 'fa-computer' },
+    { chave: 'especializado', nome: 'Laboratório Especializado', icone: 'fa-flask' },
+    { chave: 'outros', nome: 'Outros', icone: 'fa-ellipsis' }
+];
+
+// Etiqueta de status exibida na coluna "Status" da tabela
+function htmlStatusPolo(nomePolo) {
+    return isPoloConcluido(nomePolo)
+        ? '<span class="status-pill done"><i class="fa-solid fa-circle-check"></i> Visitado</span>'
+        : '<span class="status-pill pending"><i class="fa-regular fa-clock"></i> Pendente</span>';
 }
 
 // Helper para verificar status de polo concluído (Firebase com fallback para LocalStorage)
@@ -450,45 +417,38 @@ function filtrarEDesenhar() {
     const busca = inputBusca ? inputBusca.value.toLowerCase().trim() : '';
     const regiao = selectRegiao ? selectRegiao.value : 'TODAS';
     const estado = selectEstado ? selectEstado.value : 'TODOS';
-    const modelo = selectModelo ? selectModelo.value : 'TODOS';
-    const cursoSelecionado = selectCurso ? selectCurso.value : 'TODOS'; 
 
-    const dadosFiltrados = database.filter(polo => {
-        // Validação de Polo Concluído (Se o filtro estiver ligado)
-        if (apenasConcluidos && !isPoloConcluido(polo.Nome)) {
-            return false;
-        }
-
+    // Polos que atendem busca/região/estado (base dos cards de indicadores)
+    const dadosBase = database.filter(polo => {
         const atendeBusca = polo.Nome.toLowerCase().includes(busca);
         const atendeRegiao = (regiao === 'TODAS' || regiao.includes('Todas') || polo.Regiao === regiao);
         const atendeEstado = (estado === 'TODOS' || estado.includes('Todos') || polo.Estado === estado);
-        
-        let atendeModelo = true;
-        if (modelo !== 'TODOS' && !modelo.includes('Todos')) {
-            atendeModelo = (modelo === 'EAD' ? polo.Modelo === 'EAD' : polo.Modelo === 'Semipresencial');
-        }
 
-        let atendeCurso = true;
-        if (cursoSelecionado !== 'TODOS' && !cursoSelecionado.includes('Todos')) {
-            const cursosDoPolo = baseCursosPolos[polo.Nome];
-            if (cursosDoPolo && cursosDoPolo[cursoSelecionado]) {
-                const status = cursosDoPolo[cursoSelecionado].toUpperCase();
-                atendeCurso = !status.includes("SEM OFERTA") && status !== "";
-            } else {
-                atendeCurso = false; 
-            }
-        }
-
-        return atendeBusca && atendeRegiao && atendeEstado && atendeModelo && atendeCurso;
+        return atendeBusca && atendeRegiao && atendeEstado;
     });
 
-    atualizarIndicadores(dadosFiltrados);
+    // Aplica o filtro de Concluídos/Pendentes (se algum estiver ligado)
+    const dadosFiltrados = dadosBase.filter(polo => {
+        if (apenasConcluidos && !isPoloConcluido(polo.Nome)) return false;
+        if (apenasPendentes && isPoloConcluido(polo.Nome)) return false;
+        return true;
+    });
+
+    atualizarIndicadores(dadosFiltrados, dadosBase);
 
     if (tabelaBody) {
         tabelaBody.innerHTML = '';
         
         if (dadosFiltrados.length === 0) {
             if (noResultsDiv) noResultsDiv.classList.remove('hidden');
+            tabelaBody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="empty-state">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        Nenhum polo encontrado com os filtros selecionados.
+                    </td>
+                </tr>
+            `;
             renderizarPaginacao(0);
         } else {
             if (noResultsDiv) noResultsDiv.classList.add('hidden');
@@ -500,70 +460,16 @@ function filtrarEDesenhar() {
 
             polosPaginados.forEach((polo, indexOffset) => {
                 const index = inicio + indexOffset; // Garante IDs únicos
-                const badgeClass = polo.Modelo === 'EAD' ? 'badge-ead' : 'badge-semi';
-                const coursesOfPolo = baseCursosPolos[polo.Nome] || null;
-                let htmlCursos = "";
-
-                if (coursesOfPolo && Object.keys(coursesOfPolo).length > 0) {
-                    htmlCursos = `
-                        <h3 class="details-title" style="margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 20px;">🎓 Cursos Ofertados neste Polo</h3>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 20px; padding: 15px; border-radius: 8px; border: 1px solid #f1f5f9; background-color: #fafbfc;">
-                    `;
-
-                    for (const [nomeCurso, status] of Object.entries(coursesOfPolo)) {
-                        const statusUpper = status.toUpperCase();
-
-                        let bgColor = '#f8fafc';       
-                        let borderColor = '#e2e8f0';   
-                        let textColor = '#475569';     
-                        let badgeBg = '#f1f5f9';       
-                        let badgeText = '#64748b';     
-                        let badgeBorder = '#e2e8f0';   
-
-                        if (statusUpper.includes("SEMI")) {
-                            bgColor = '#f0fdf4'; borderColor = '#bbf7d0'; textColor = '#14532d'; badgeBg = '#dcfce7'; badgeText = '#15803d'; badgeBorder = '#bbf7d0';
-                        } else if (statusUpper.includes("EAD")) {
-                            bgColor = '#eff6ff'; borderColor = '#bfdbfe'; textColor = '#1e3a8a'; badgeBg = '#dbeafe'; badgeText = '#1d4ed8'; badgeBorder = '#bfdbfe';
-                        } else if (statusUpper.includes("SEM OFERTA")) {
-                            bgColor = '#fef2f2'; borderColor = '#fca5a5'; textColor = '#7f1d1d'; badgeBg = '#fee2e2'; badgeText = '#b91c1c'; badgeBorder = '#fca5a5';
-                        }
-
-                        const destaqueFiltro = (nomeCurso === cursoSelecionado) ? 'box-shadow: 0 0 0 3px #2563eb;' : '';
-
-                        htmlCursos += `
-                            <div style="background-color: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 6px; ${destaqueFiltro}">
-                                <div style="font-size: 0.82rem; font-weight: 600; color: ${textColor};">${nomeCurso}</div>
-                                <span style="align-self: flex-start; background-color: ${badgeBg}; color: ${badgeText}; font-size: 0.68rem; font-weight: 700; padding: 3px 6px; border-radius: 4px; border: 1px solid ${badgeBorder}; text-transform: uppercase; letter-spacing: 0.3px;">
-                                    ${status}
-                                </span>
-                            </div>
-                        `;
-                    }
-                    htmlCursos += `</div>`;
-                } else {
-                    htmlCursos = `
-                        <h3 class="details-title" style="margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 20px;">🎓 Cursos Ofertados neste Polo</h3>
-                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">Nenhum curso ativo mapeado para o polo "${polo.Nome}" na planilha de cursos.</p>
-                    `;
-                }
-
-                const checkIconHtml = isPoloConcluido(polo.Nome)
-                    ? `<i class="fa-solid fa-circle-check item-visto-check" style="color: #10b981; font-size: 1.15rem; margin-left: auto;" title="Polo Concluído"></i>`
-                    : '';
 
                 const mainRow = document.createElement('tr');
                 mainRow.className = 'polo-row';
                 mainRow.id = `polo-row-${index}`;
-                mainRow.style.cursor = 'pointer';
                 mainRow.innerHTML = `
-                    <td style="text-align: center;"><i class="fa-solid fa-chevron-right toggle-icon" id="toggle-icon-${index}" style="transition: transform 0.2s;"></i></td>
-                    <td>${polo.Regiao}</td>
-                    <td>${polo.Estado}</td>
+                    <td style="text-align: center;"><i class="fa-solid fa-chevron-right toggle-icon" id="toggle-icon-${index}"></i></td>
                     <td><strong>${polo.Nome}</strong></td>
-                    <td style="display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 100%; min-height: 45px;">
-                        <span class="badge ${badgeClass}">${polo.Modelo}</span>
-                        ${checkIconHtml}
-                    </td>
+                    <td><span class="uf-tag">${polo.Estado}</span></td>
+                    <td>${polo.Regiao}</td>
+                    <td class="status-cell">${htmlStatusPolo(polo.Nome)}</td>
                 `;
                 
                 const detailRow = document.createElement('tr');
@@ -576,114 +482,49 @@ const nomePoloEncoded = encodeURIComponent(polo.Nome)
     .replace(/'/g, '%27');
 
 
+                const htmlAmbientes = AMBIENTES_POLO.map(amb => `
+                    <div class="switch-item">
+                        <div class="switch-header">
+                            <span class="switch-label"><i class="fa-solid ${amb.icone}"></i> ${amb.nome}</span>
+                            <label class="switch">
+                                <input type="checkbox" id="env-${amb.chave}-${index}" onchange="toggleNotaAmbiente('env-${amb.chave}-${index}', 'box-${amb.chave}-${index}')">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="switch-note" id="box-${amb.chave}-${index}">
+                            <textarea id="note-${amb.chave}-${index}" placeholder="Anotações sobre ${amb.nome}..."></textarea>
+                        </div>
+                    </div>
+                `).join('');
+
                 detailRow.innerHTML = `
-                    <td colspan="5" style="padding: 0; border: none;">
-                        <div class="detail-container" id="detail-container-${index}" onclick="event.stopPropagation()" style="max-height: none !important; height: auto !important; overflow: visible !important; display: block;">
-                            <div class="polo-details-box" style="padding: 24px; background: #fff; border-bottom: 3px solid #e2e8f0;">
-                                
-                                <h3 class="details-title" style="margin-top: 0;">Quadro de Anotações Geral</h3>
-                                <textarea class="notes-textarea" id="notes-${index}" placeholder="Digite notas importantes aqui..." style="width: 100%; min-height: 90px; margin-bottom: 20px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; font-family: inherit;"></textarea>
-                                
-                                <h3 class="details-title">Ambientes do Polo (Selecione se houver)</h3>
-                                <div class="switches-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px;">
-                                    
-                                    <div class="switch-item" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px;">
-                                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                                            <span style="font-weight: 600;">Recepção</span>
-                                            <label class="switch">
-                                                <input type="checkbox" id="env-recepcao-${index}" onchange="toggleNotaAmbiente('env-recepcao-${index}', 'box-recepcao-${index}')">
-                                                <span class="slider"></span>
-                                            </label>
-                                        </div>
-                                        <div id="box-recepcao-${index}" style="display: none; margin-top: 10px;">
-                                            <textarea id="note-recepcao-${index}" placeholder="Anotações sobre a Recepção..." style="width: 100%; height: 60px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.85rem; font-family: inherit;"></textarea>
-                                        </div>
-                                    </div>
+                    <td colspan="5">
+                        <div class="detail-container" id="detail-container-${index}" onclick="event.stopPropagation()">
+                            <div class="polo-details-box">
 
-                                    <div class="switch-item" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px;">
-                                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                                            <span style="font-weight: 600;">Sala de Coordenação</span>
-                                            <label class="switch">
-                                                <input type="checkbox" id="env-coordenacao-${index}" onchange="toggleNotaAmbiente('env-coordenacao-${index}', 'box-coordenacao-${index}')">
-                                                <span class="slider"></span>
-                                            </label>
-                                        </div>
-                                        <div id="box-coordenacao-${index}" style="display: none; margin-top: 10px;">
-                                            <textarea id="note-coordenacao-${index}" placeholder="Anotações sobre a Sala de Coordenação..." style="width: 100%; height: 60px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.85rem; font-family: inherit;"></textarea>
-                                        </div>
-                                    </div>
+                                <h3 class="details-title"><i class="fa-solid fa-pen-to-square"></i> Quadro de Anotações Geral</h3>
+                                <textarea class="notes-textarea" id="notes-${index}" placeholder="Digite notas importantes sobre a visita a este polo..."></textarea>
 
-                                    <div class="switch-item" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px;">
-                                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                                            <span style="font-weight: 600;">Sala de Estudos</span>
-                                            <label class="switch">
-                                                <input type="checkbox" id="env-estudos-${index}" onchange="toggleNotaAmbiente('env-estudos-${index}', 'box-estudos-${index}')">
-                                                <span class="slider"></span>
-                                            </label>
-                                        </div>
-                                        <div id="box-estudos-${index}" style="display: none; margin-top: 10px;">
-                                            <textarea id="note-estudos-${index}" placeholder="Anotações sobre a Sala de Estudos..." style="width: 100%; height: 60px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.85rem; font-family: inherit;"></textarea>
-                                        </div>
-                                    </div>
-
-                                    <div class="switch-item" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px;">
-                                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                                            <span style="font-weight: 600;">Laboratório de Informática</span>
-                                            <label class="switch">
-                                                <input type="checkbox" id="env-informatica-${index}" onchange="toggleNotaAmbiente('env-informatica-${index}', 'box-informatica-${index}')">
-                                                <span class="slider"></span>
-                                            </label>
-                                        </div>
-                                        <div id="box-informatica-${index}" style="display: none; margin-top: 10px;">
-                                            <textarea id="note-informatica-${index}" placeholder="Anotações sobre o Lab. de Informática..." style="width: 100%; height: 60px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.85rem; font-family: inherit;"></textarea>
-                                        </div>
-                                    </div>
-
-                                    <div class="switch-item" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px;">
-                                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                                            <span style="font-weight: 600;">Laboratório Especializado</span>
-                                            <label class="switch">
-                                                <input type="checkbox" id="env-especializado-${index}" onchange="toggleNotaAmbiente('env-especializado-${index}', 'box-especializado-${index}')">
-                                                <span class="slider"></span>
-                                            </label>
-                                        </div>
-                                        <div id="box-especializado-${index}" style="display: none; margin-top: 10px;">
-                                            <textarea id="note-especializado-${index}" placeholder="Anotações sobre o Lab. Especializado..." style="width: 100%; height: 60px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.85rem; font-family: inherit;"></textarea>
-                                        </div>
-                                    </div>
-
-                                    <div class="switch-item" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px;">
-                                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                                            <span style="font-weight: 600;">Outros</span>
-                                            <label class="switch">
-                                                <input type="checkbox" id="env-outros-${index}" onchange="toggleNotaAmbiente('env-outros-${index}', 'box-outros-${index}')">
-                                                <span class="slider"></span>
-                                            </label>
-                                        </div>
-                                        <div id="box-outros-${index}" style="display: none; margin-top: 10px;">
-                                            <textarea id="note-outros-${index}" placeholder="Anotações..." style="width: 100%; height: 60px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.85rem; font-family: inherit;"></textarea>
-                                        </div>
-                                    </div>
-
+                                <h3 class="details-title"><i class="fa-solid fa-door-open"></i> Ambientes do Polo (selecione se houver)</h3>
+                                <div class="switches-grid">
+                                    ${htmlAmbientes}
                                 </div>
-                                
-                                ${htmlCursos}
-                                
-                                <div class="details-footer" style="margin-top: 30px; border-top: 2px solid #e2e8f0; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
-                                    <div style="display: flex; align-items: center; gap: 15px;">
-                                        <button class="btn-clear" onclick="limparDadosPolo(decodeURIComponent('${nomePoloEncoded}'), ${index})" style="padding: 12px 20px; font-size: 0.95rem; font-weight: 600; cursor: pointer; border-radius: 6px; background-color: #ef4444; color: white; border: none; display: flex; align-items: center; gap: 8px;">
-                                            <i class="fa-solid fa-trash-can"></i> Limpar Dados
-                                        </button>
 
-                                        <button class="btn-save" onclick="salvarConfiguracaoDoPolo(decodeURIComponent('${nomePoloEncoded}'), ${index})" style="padding: 12px 28px; font-size: 0.95rem; font-weight: 600; cursor: pointer; border-radius: 6px; background-color: #10b981; color: white; border: none;">
+                                <div class="polo-actions-bar">
+                                    <div class="actions-group">
+                                        <button class="btn-action btn-salvar btn-save" onclick="salvarConfiguracaoDoPolo(decodeURIComponent('${nomePoloEncoded}'), ${index})">
                                             <i class="fa-solid fa-floppy-disk"></i> Salvar Alterações
                                         </button>
 
-                                        <span id="status-salvamento-${index}" style="display: none; align-items: center; gap: 8px; font-weight: 600; font-size: 0.9rem; color: #334155;"></span>
+                                        <button class="btn-action btn-agendar" onclick="agendarVisitaPolo(decodeURIComponent('${nomePoloEncoded}'))">
+                                            <i class="fa-solid fa-calendar-plus"></i> Agendar Visita
+                                        </button>
+
+                                        <span class="status-salvamento" id="status-salvamento-${index}"></span>
                                     </div>
-                                    
-                                    <button class="btn-agenda-polo" onclick="agendarVisitaPolo(decodeURIComponent('${nomePoloEncoded}'))" style="padding: 12px 20px; background-color: #0284c7; color: white; border: none; border-radius: 6px; font-size: 0.95rem; font-weight: 600; cursor: pointer;">
-                                        <i class="fa-solid fa-calendar-plus"></i> Agendar Visita
+
+                                    <button class="btn-action btn-limpar" onclick="limparDadosPolo(decodeURIComponent('${nomePoloEncoded}'), ${index})">
+                                        <i class="fa-solid fa-trash-can"></i> Limpar Dados
                                     </button>
                                 </div>
                             </div>
@@ -695,14 +536,11 @@ const nomePoloEncoded = encodeURIComponent(polo.Nome)
                     const isVisible = detailRow.style.display !== 'none';
                     
                     document.querySelectorAll('.detail-row').forEach(r => r.style.display = 'none');
-                    document.querySelectorAll('.toggle-icon').forEach(i => i.style.transform = 'rotate(0deg)');
                     document.querySelectorAll('.polo-row').forEach(r => r.classList.remove('expanded'));
 
                     if (!isVisible) {
                         detailRow.style.display = 'table-row';
                         mainRow.classList.add('expanded');
-                        const icon = document.getElementById(`toggle-icon-${index}`);
-                        if (icon) icon.style.transform = 'rotate(90deg)';
                         carregarConfiguracaoDoPolo(polo.Nome, index);
                     }
                 });
@@ -720,15 +558,8 @@ const nomePoloEncoded = encodeURIComponent(polo.Nome)
 // DESENHA OS BOTÕES DE NAVEGAÇÃO DE PÁGINAS
 // ==========================================
 function renderizarPaginacao(totalItens) {
-    let container = document.getElementById('paginacao-container');
-    
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'paginacao-container';
-        container.style.cssText = 'display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px; margin-bottom: 20px; font-weight: 600;';
-        const tabela = document.querySelector('table') || (tabelaBody ? tabelaBody.parentElement : null);
-        if (tabela) tabela.parentElement.appendChild(container);
-    }
+    const container = document.getElementById('paginacao-container');
+    if (!container) return;
 
     const totalPaginas = Math.ceil(totalItens / itensPorPagina);
     if (totalPaginas <= 1) {
@@ -736,21 +567,26 @@ function renderizarPaginacao(totalItens) {
         return;
     }
 
+    const primeiro = (paginaAtual - 1) * itensPorPagina + 1;
+    const ultimo = Math.min(paginaAtual * itensPorPagina, totalItens);
+
     container.innerHTML = `
-        <button id="btn-ant" style="padding: 8px 16px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; font-weight:600;" ${paginaAtual === 1 ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>
-            <i class="fa-solid fa-chevron-left"></i> Anterior
-        </button>
-        <span style="font-size: 0.95rem; color: #475569;">Página ${paginaAtual} de ${totalPaginas}</span>
-        <button id="btn-prox" style="padding: 8px 16px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; font-weight:600;" ${paginaAtual === totalPaginas ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>
-            Próximo <i class="fa-solid fa-chevron-right"></i>
-        </button>
+        <span class="pagination-info">Mostrando ${primeiro}–${ultimo} de ${totalItens} polos · Página ${paginaAtual} de ${totalPaginas}</span>
+        <div class="actions-group">
+            <button id="btn-ant" class="btn-page" ${paginaAtual === 1 ? 'disabled' : ''}>
+                <i class="fa-solid fa-chevron-left"></i> Anterior
+            </button>
+            <button id="btn-prox" class="btn-page" ${paginaAtual === totalPaginas ? 'disabled' : ''}>
+                Próximo <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </div>
     `;
 
     document.getElementById('btn-ant')?.addEventListener('click', () => {
         if (paginaAtual > 1) {
             paginaAtual--;
             filtrarEDesenhar();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            rolarParaTopo();
         }
     });
 
@@ -758,29 +594,37 @@ function renderizarPaginacao(totalItens) {
         if (paginaAtual < totalPaginas) {
             paginaAtual++;
             filtrarEDesenhar();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            rolarParaTopo();
         }
     });
+}
+
+// A área com rolagem é o .main-content no computador e a janela no celular
+function rolarParaTopo() {
+    document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // =========================================================================
 // 9. INDICADORES E PAINEL DE PERSISTÊNCIA (FIREBASE + LOCALSTORAGE)
 // =========================================================================
 
-function atualizarIndicadores(dadosFiltrados) {
-    const total = dadosFiltrados.length;
-    let eadCount = 0;
-    let semiCount = 0;
+function atualizarIndicadores(dadosFiltrados, dadosBase = dadosFiltrados) {
+    ultimosDadosFiltrados = dadosFiltrados;
+    ultimosDadosBase = dadosBase;
 
-    dadosFiltrados.forEach(p => {
-        if (p.Modelo === 'EAD') eadCount++;
-        else semiCount++;
-    });
+    if (txtBadgeTotal) txtBadgeTotal.textContent = dadosFiltrados.length;
 
-    if (txtTotalPolos) txtTotalPolos.textContent = total;
-    if (txtTotalEad) txtTotalEad.textContent = eadCount;
-    if (txtTotalSemi) txtTotalSemi.textContent = semiCount;
-    if (txtBadgeTotal) txtBadgeTotal.textContent = total;
+    // Cards do topo: refletem a busca/região/estado selecionados
+    const totalBase = dadosBase.length;
+    const concluidosBase = dadosBase.filter(p => isPoloConcluido(p.Nome)).length;
+    const cobertura = totalBase ? Math.round((concluidosBase / totalBase) * 100) : 0;
+
+    if (txtTotalPolos) txtTotalPolos.textContent = totalBase;
+    if (txtCardConcluidos) txtCardConcluidos.textContent = concluidosBase;
+    if (txtCardPendentes) txtCardPendentes.textContent = totalBase - concluidosBase;
+    if (txtCardCobertura) txtCardCobertura.textContent = `${cobertura}%`;
+    if (barraCobertura) barraCobertura.style.width = `${cobertura}%`;
 
     let concluidos = 0;
     database.forEach(p => {
@@ -789,6 +633,9 @@ function atualizarIndicadores(dadosFiltrados) {
 
     if (txtBadgeConcluidos) {
         txtBadgeConcluidos.textContent = `${concluidos} Concluídos`;
+    }
+    if (txtBadgePendentes) {
+        txtBadgePendentes.textContent = `${database.length - concluidos} Pendentes`;
     }
 }
 
@@ -813,9 +660,12 @@ function carregarConfiguracaoDoPolo(nomePolo, index) {
                 toggleNotaAmbiente(`env-${amb}-${index}`, `box-${amb}-${index}`);
                 if (note) {
                     note.value = dados[`note_${amb}`] || '';
+                    ajustarAlturaTextarea(note);
                 }
             }
         });
+
+        if (txtNotas) ajustarAlturaTextarea(txtNotas);
     } catch (e) {
         console.error("Erro ao carregar dados salvos do polo:", e);
     }
@@ -908,19 +758,268 @@ function atualizarStatusCheckLinha(nomePolo, index) {
     const mainRow = document.getElementById(`polo-row-${index}`);
     if (!mainRow) return;
 
-    const tdBadge = mainRow.querySelector('td:last-child');
-    if (!tdBadge) return;
+    const celulaStatus = mainRow.querySelector('.status-cell');
+    if (celulaStatus) celulaStatus.innerHTML = htmlStatusPolo(nomePolo);
 
-    let checkIcon = tdBadge.querySelector('.item-visto-check');
-    if (!checkIcon) {
-        checkIcon = document.createElement('i');
-        checkIcon.className = 'fa-solid fa-circle-check item-visto-check';
-        checkIcon.style.cssText = 'color: #10b981; font-size: 1.15rem; margin-left: auto;';
-        checkIcon.title = 'Polo Concluído';
-        tdBadge.appendChild(checkIcon);
+    atualizarIndicadores(ultimosDadosFiltrados, ultimosDadosBase);
+}
+
+// =========================================================================
+// 10. RELATÓRIO POR REGIÃO (Atingidos, Pendentes, Pontos de Atenção e Anexo de Comentários)
+// =========================================================================
+function escaparHtml(texto) {
+    return String(texto || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function obterDadosPolo(nomePolo) {
+    const chave = sanitizarChavePolo(nomePolo);
+    return cachePolosFirebase[chave] || JSON.parse(localStorage.getItem(`polo_data_${nomePolo}`) || 'null');
+}
+
+// Palavras/expressões (sem acento, minúsculas) que indicam um problema nos comentários
+const TERMOS_DE_ATENCAO = [
+    'reforma', 'falta', 'faltando', 'faltam', 'ausencia', 'ausente', 'nao possui', 'nao tem', 'nao ha',
+    'nao existe', 'nao funciona', 'inexistente', 'quebrad', 'danificad', 'estragad', 'defeito', 'precisa',
+    'necessita', 'necessario', 'inadequad', 'insuficiente', 'precari', 'improvis', 'problema', 'irregular',
+    'pendente', 'pendencia', 'ruim', 'infiltra', 'goteira', 'mofo', 'umidade', 'sujo', 'sujeira',
+    'apertad', 'pequen', 'adequar', 'adequacao', 'manutencao', 'desativad', 'interditad', 'em obra',
+    'aguardando', 'nao atende', 'nao esta', 'sem acessibilidade', 'sem '
+];
+
+// Expressões que contêm um termo acima mas indicam que está tudo certo
+const TERMOS_POSITIVOS = ['sem problema', 'nenhum problema', 'sem pendencia', 'nenhuma pendencia', 'nao precisa', 'nao ha problema'];
+
+function normalizarTexto(texto) {
+    return String(texto || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+// Separa as anotações em frases e devolve só as que mencionam algum problema
+function extrairObservacoesDeAtencao(dados, nomesAmbientes) {
+    const fontes = [{ local: 'Geral', texto: dados.anotacoes }];
+    Object.keys(nomesAmbientes).forEach(amb => {
+        if (dados[amb]) fontes.push({ local: nomesAmbientes[amb], texto: dados[`note_${amb}`] });
+    });
+
+    const observacoes = [];
+    fontes.forEach(({ local, texto }) => {
+        if (!texto || !texto.trim()) return;
+
+        String(texto)
+            .split(/\n+|(?<=[.!?;])\s+/)
+            .map(frase => frase.replace(/^[\s\-•*/]+|[\s/]+$/g, '').trim())
+            .filter(frase => frase.length > 2)
+            .forEach(frase => {
+                const fraseNormalizada = ` ${normalizarTexto(frase)} `;
+                if (TERMOS_POSITIVOS.some(t => fraseNormalizada.includes(t))) return;
+                if (TERMOS_DE_ATENCAO.some(t => fraseNormalizada.includes(t))) {
+                    observacoes.push({ local, texto: frase });
+                }
+            });
+    });
+    return observacoes;
+}
+
+function gerarRelatorioPorRegiao() {
+    if (database.length === 0) {
+        Swal.fire('Aguarde', 'Os polos ainda estão sendo carregados da planilha.', 'info');
+        return;
     }
 
-    atualizarIndicadores(database);
+    const nomesAmbientes = {
+        recepcao: 'Recepção',
+        coordenacao: 'Sala de Coordenação',
+        estudos: 'Sala de Estudos',
+        informatica: 'Laboratório de Informática',
+        especializado: 'Laboratório Especializado',
+        outros: 'Outros'
+    };
+
+    // Respeita o filtro de região da tela, se houver um selecionado
+    const regiaoFiltro = selectRegiao ? selectRegiao.value : 'TODAS';
+    const polosBase = (regiaoFiltro === 'TODAS' || regiaoFiltro.includes('Todas'))
+        ? database
+        : database.filter(p => p.Regiao === regiaoFiltro);
+
+    // Agrupa os polos por região
+    const ordemRegioes = ['Norte', 'Nordeste', 'Centro-Oeste', 'Sudeste', 'Sul', 'Estrangeiro'];
+    const grupos = {};
+    polosBase.forEach(polo => {
+        if (!grupos[polo.Regiao]) grupos[polo.Regiao] = [];
+        grupos[polo.Regiao].push(polo);
+    });
+    const regioes = Object.keys(grupos).sort((a, b) => {
+        const ia = ordemRegioes.indexOf(a), ib = ordemRegioes.indexOf(b);
+        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b);
+    });
+
+    // "Outros" não entra em "ambientes ausentes": não é um ambiente obrigatório
+    const ambientesAvaliados = Object.keys(nomesAmbientes).filter(amb => amb !== 'outros');
+
+    let totalGeral = 0, totalAtingidos = 0, totalAtencao = 0;
+    let htmlResumo = '';
+    let htmlRegioes = '';
+
+    regioes.forEach(regiao => {
+        const polos = grupos[regiao].slice().sort((a, b) => a.Nome.localeCompare(b.Nome));
+        const feitos = polos.filter(p => isPoloConcluido(p.Nome));
+        const pendentes = polos.filter(p => !isPoloConcluido(p.Nome));
+        const percentual = polos.length ? Math.round((feitos.length / polos.length) * 100) : 0;
+
+        // Pontos de atenção de cada polo visitado: infraestrutura ausente + trechos dos comentários
+        // que indicam problema. Polos com mais pontos aparecem primeiro.
+        const pontosAtencao = feitos
+            .map(polo => {
+                const dados = obterDadosPolo(polo.Nome) || {};
+                return {
+                    polo,
+                    ausentes: ambientesAvaliados.filter(amb => !dados[amb]),
+                    observacoes: extrairObservacoesDeAtencao(dados, nomesAmbientes)
+                };
+            })
+            .filter(p => p.ausentes.length || p.observacoes.length)
+            .sort((a, b) => (b.ausentes.length + b.observacoes.length) - (a.ausentes.length + a.observacoes.length)
+                          || a.polo.Nome.localeCompare(b.polo.Nome));
+
+        totalGeral += polos.length;
+        totalAtingidos += feitos.length;
+        totalAtencao += pontosAtencao.length;
+
+        htmlResumo += `
+            <tr>
+                <td>${escaparHtml(regiao)}</td>
+                <td>${polos.length}</td>
+                <td>${feitos.length}</td>
+                <td>${pendentes.length}</td>
+                <td>${percentual}%</td>
+                <td>${pontosAtencao.length}</td>
+            </tr>`;
+
+        const htmlAtencao = pontosAtencao.map(({ polo, ausentes, observacoes }) => {
+            const total = ausentes.length + observacoes.length;
+            return `
+                <div class="atencao">
+                    <div class="comentario-titulo">
+                        ${escaparHtml(polo.Nome)} <span>(${escaparHtml(polo.Estado)})</span>
+                        <em class="tag-prioridade">${total} ${total === 1 ? 'ponto' : 'pontos'}</em>
+                    </div>
+                    ${ausentes.length ? `
+                        <div class="atencao-bloco">
+                            <strong>Infraestrutura ausente:</strong>
+                            ${ausentes.map(amb => `<span class="chip-ausente">${nomesAmbientes[amb]}</span>`).join('')}
+                        </div>` : ''}
+                    ${observacoes.length ? `
+                        <div class="atencao-bloco">
+                            <strong>Observações das visitas:</strong>
+                            <ul>${observacoes.map(o => `<li><b>${escaparHtml(o.local)}:</b> ${escaparHtml(o.texto)}</li>`).join('')}</ul>
+                        </div>` : ''}
+                </div>`;
+        }).join('');
+
+        const listaPolos = lista => lista.length
+            ? `<ul class="lista-polos">${lista.map(p => `<li>${escaparHtml(p.Nome)} <span>(${escaparHtml(p.Estado)})</span></li>`).join('')}</ul>`
+            : '<p class="vazio">Nenhum polo.</p>';
+
+        htmlRegioes += `
+            <section class="regiao">
+                <h2>${escaparHtml(regiao)}</h2>
+                <div class="kpis">
+                    <div class="kpi"><span>${polos.length}</span>Total de polos</div>
+                    <div class="kpi ok"><span>${feitos.length}</span>Polos atingidos</div>
+                    <div class="kpi pend"><span>${pendentes.length}</span>Pendentes</div>
+                    <div class="kpi"><span>${percentual}%</span>Cobertura</div>
+                </div>
+                <div class="barra"><div style="width: ${percentual}%"></div></div>
+
+                <h3 class="alerta">⚠ Pontos de atenção (${pontosAtencao.length})</h3>
+                ${htmlAtencao || `<p class="vazio">${feitos.length ? 'Nenhum ponto de atenção identificado nos polos visitados desta região.' : 'Nenhum polo visitado nesta região ainda.'}</p>`}
+
+                <div class="colunas">
+                    <div>
+                        <h3 class="ok">✔ Polos feitos (${feitos.length})</h3>
+                        ${listaPolos(feitos)}
+                    </div>
+                    <div>
+                        <h3 class="pend">⏳ Polos pendentes (${pendentes.length})</h3>
+                        ${listaPolos(pendentes)}
+                    </div>
+                </div>
+            </section>`;
+    });
+
+    const percentualGeral = totalGeral ? Math.round((totalAtingidos / totalGeral) * 100) : 0;
+    const dataEmissao = new Date().toLocaleString('pt-BR');
+
+    const janela = window.open('', '_blank');
+    if (!janela) {
+        Swal.fire('Pop-up bloqueado', 'Permita pop-ups para este site para visualizar o relatório.', 'warning');
+        return;
+    }
+
+    janela.document.write(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Relatório de Visitas por Região</title>
+<style>
+    body { font-family: 'Inter', Arial, sans-serif; color: #1e293b; margin: 0; padding: 32px; background: #fff; }
+    .topo { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #2563eb; padding-bottom: 16px; margin-bottom: 24px; }
+    h1 { margin: 0; font-size: 1.6rem; color: #1e3a8a; }
+    .sub { color: #64748b; font-size: 0.9rem; margin-top: 4px; }
+    .btn-imprimir { background: #2563eb; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 32px; font-size: 0.9rem; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; }
+    th { background: #f1f5f9; }
+    tfoot td { font-weight: 700; background: #f8fafc; }
+    .regiao { margin-bottom: 40px; page-break-inside: auto; }
+    .regiao + .regiao { page-break-before: always; }
+    h2 { color: #1e3a8a; border-left: 5px solid #2563eb; padding-left: 10px; }
+    h3 { font-size: 1rem; margin: 24px 0 10px; }
+    h3.ok { color: #059669; } h3.pend { color: #d97706; }
+    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .kpi { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-size: 0.8rem; color: #64748b; }
+    .kpi span { display: block; font-size: 1.5rem; font-weight: 700; color: #1e293b; }
+    .kpi.ok span { color: #059669; } .kpi.pend span { color: #d97706; }
+    .barra { height: 10px; background: #fef3c7; border-radius: 5px; margin-top: 12px; overflow: hidden; }
+    .barra div { height: 100%; background: #10b981; }
+    .comentario-titulo { font-weight: 700; }
+    .comentario-titulo span, .lista-polos span { color: #64748b; font-weight: 400; font-size: 0.85rem; }
+    .colunas { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .lista-polos { margin: 0; padding-left: 18px; font-size: 0.9rem; line-height: 1.6; }
+    .vazio { color: #94a3b8; font-style: italic; font-size: 0.9rem; }
+    h3.alerta { color: #b45309; }
+    .atencao { border: 1px solid #fde68a; border-left: 5px solid #f59e0b; background: #fffbeb; border-radius: 8px; padding: 12px 16px; margin-bottom: 10px; page-break-inside: avoid; }
+    .atencao-bloco { margin-top: 10px; font-size: 0.88rem; }
+    .atencao-bloco > strong { display: block; margin-bottom: 6px; color: #92400e; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .atencao-bloco ul { margin: 0; padding-left: 18px; line-height: 1.55; }
+    .chip-ausente { display: inline-block; margin: 0 6px 6px 0; padding: 3px 10px; border-radius: 999px; background: #fee2e2; color: #b91c1c; font-size: 0.8rem; font-weight: 600; }
+    .tag-prioridade { font-style: normal; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 999px; margin-left: 8px; background: #fef3c7; color: #b45309; vertical-align: 2px; }
+    @media print { .btn-imprimir { display: none; } body { padding: 0; } }
+</style>
+</head>
+<body>
+    <div class="topo">
+        <div>
+            <h1>Relatório de Visitas aos Polos por Região</h1>
+            <div class="sub">Emitido em ${dataEmissao}${regiaoFiltro === 'TODAS' || regiaoFiltro.includes('Todas') ? '' : ` · Região: ${escaparHtml(regiaoFiltro)}`}</div>
+        </div>
+        <button class="btn-imprimir" onclick="window.print()">Imprimir / Salvar PDF</button>
+    </div>
+
+    <h2>Resumo Geral</h2>
+    <table>
+        <thead><tr><th>Região</th><th>Total de Polos</th><th>Atingidos</th><th>Pendentes</th><th>Cobertura</th><th>Polos com Pontos de Atenção</th></tr></thead>
+        <tbody>${htmlResumo}</tbody>
+        <tfoot><tr><td>Total</td><td>${totalGeral}</td><td>${totalAtingidos}</td><td>${totalGeral - totalAtingidos}</td><td>${percentualGeral}%</td><td>${totalAtencao}</td></tr></tfoot>
+    </table>
+
+    ${htmlRegioes}
+</body>
+</html>`);
+    janela.document.close();
 }
 
 function agendarVisitaPolo(nomePolo) {
