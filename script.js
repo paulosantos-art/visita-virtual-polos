@@ -1,21 +1,9 @@
-// =========================================================================
-// 0. CONTROLE DE ACESSO (Trava de Segurança na Index)
-// =========================================================================
-
-if (localStorage.getItem('painel_polos_logado') !== 'true') {
-    window.location.href = 'login.html';
-}
+// O controle de acesso (login obrigatório) fica no auth.js, carregado antes deste arquivo
 
 // =========================================================================
 // 1. CONFIGURAÇÃO DA PLANILHA (IDs e Links de Integração)
 // =========================================================================
-const SPREADSHEET_ID = '1km9rpUas9U3V4zqRqCp4AxxR_srUphtlckBuGRF7lqQ';
-
-const SPREADSHEET_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv`;
 const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxH-7NvAu4PbBPBpEWd5UGCUApnpVlMiAeTLsZcoL_DOiF3MKDnuVidCPHzDZVsUgns/exec';
-
-let database = [];
-let cachePolosFirebase = {}; // Armazena o estado do Firebase em tempo real
 
 // Variáveis de Paginação e Filtro de Concluídos
 let paginaAtual = 1;
@@ -26,12 +14,6 @@ let apenasPendentes = false;
 // Última lista exibida (usada para atualizar os indicadores após salvar um polo)
 let ultimosDadosFiltrados = [];
 let ultimosDadosBase = [];
-
-// Função utilitária para transformar o nome do polo em uma chave válida no Firebase
-function sanitizarChavePolo(nomePolo) {
-    if (!nomePolo) return '';
-    return nomePolo.replace(/[.#$\[\]\/]/g, "_").trim();
-}
 
 // =========================================================================
 // 2. ELEMENTOS DO DOM (MAPEAMENTO)
@@ -98,6 +80,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     
+    criarCombosDeFiltro();
+
     if (selectEstado) {
         selectEstado.addEventListener('change', () => {
             ajustarRegiaoBaseadoEmEstado();
@@ -110,11 +94,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (btnRelatorio) {
-        btnRelatorio.addEventListener('click', gerarRelatorioPorRegiao);
+        // Respeita o filtro de região da tela, se houver um selecionado
+        btnRelatorio.addEventListener('click', () => gerarRelatorioPorRegiao(selectRegiao ? selectRegiao.value : 'TODAS'));
     }
 
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' || event.key === 'Esc') {
+            // Com a prévia do relatório aberta, o ESC só fecha a prévia
+            if (fecharPreviaRelatorio()) return;
             if (document.activeElement.tagName === 'TEXTAREA') return;
             
             if (inputBusca) inputBusca.value = '';
@@ -165,43 +152,11 @@ function sincronizarFirebaseEmTempoReal() {
     });
 }
 function efetuarLogout() {
-    localStorage.removeItem('painel_polos_logado');
-    window.location.href = 'login.html';
+    sairDoSistema();
 }
 
-// =========================================================================
-// 4. LEITURA DO CSV
-// =========================================================================
-function processarLinhasCSV(text) {
-    let lines = [];
-    let row = [""];
-    let inQuotes = false;
-
-    for (let i = 0; i < text.length; i++) {
-        let c = text[i];
-        let next = text[i + 1];
-        if (c === '"') {
-            if (inQuotes && next === '"') {
-                row[row.length - 1] += '"';
-                i++;
-            } else {
-                inQuotes = !inQuotes;
-            }
-        } else if (c === ',' && !inQuotes) {
-            row.push("");
-        } else if ((c === '\r' || c === '\n') && !inQuotes) {
-            if (c === '\r' && next === '\n') i++;
-            lines.push(row);
-            row = [""];
-        } else {
-            row[row.length - 1] += c;
-        }
-    }
-    if (row.length > 1 || row[0] !== "") {
-        lines.push(row);
-    }
-    return lines;
-}
+// A planilha, o status dos polos e a leitura do CSV ficam no polos-base.js;
+// o relatório por região fica no relatorio.js (ambos compartilhados com a Consulta)
 
 // =========================================================================
 // 5. LEITURA E TRATAMENTO DA PLANILHA (POLOS)
@@ -252,43 +207,6 @@ function ajustarRegiaoBaseadoEmEstado() {
             }
         }
     }
-}
-
-function processarCsvProfissional(text) {
-    const lines = processarLinhasCSV(text);
-    if (lines.length === 0) return [];
-
-    const headers = lines[0].map(h => h.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase());
-
-    let idxNome = headers.findIndex(h => h.includes('nome') || h.includes('polo') || h.includes('cidade'));
-    let idxRegiao = headers.findIndex(h => h.includes('regia'));
-    let idxEstado = headers.findIndex(h => h.includes('estado'));
-
-    if (idxNome === -1) idxNome = 0;
-    if (idxRegiao === -1) idxRegiao = 1;
-    if (idxEstado === -1) idxEstado = 2;
-
-    const parsedData = [];
-
-    for (let i = 1; i < lines.length; i++) {
-        const cells = lines[i];
-        if (cells.length < 2) continue;
-
-        const nome = cells[idxNome] ? cells[idxNome].trim() : '';
-        const regiao = cells[idxRegiao] ? cells[idxRegiao].trim() : 'Outros';
-        
-        let estado = cells[idxEstado] ? cells[idxEstado].trim() : 'Não Definido';
-        estado = estado.replace(/\s*\(.*?\)\s*/g, '').trim();
-
-        if (nome) {
-            parsedData.push({
-                Nome: nome,
-                Regiao: regiao,
-                Estado: estado
-            });
-        }
-    }
-    return parsedData;
 }
 
 // =========================================================================
@@ -349,6 +267,231 @@ function popularEstadosBaseadoEmRegiao() {
 }
 
 // =========================================================================
+// 6.1 CAMPOS DE REGIÃO E ESTADO COM PESQUISA (substituem visualmente o <select>)
+// =========================================================================
+// Os <select> originais continuam existindo (ocultos) e seguem sendo a fonte
+// do valor; estes campos só oferecem a busca e a lista estilizada.
+// (As siglas de estados e regiões ficam no polos-base.js)
+
+// Funções de sincronização de cada campo criado (chamadas em filtrarEDesenhar)
+const combosPesquisaveis = [];
+
+function criarCombosDeFiltro() {
+    criarComboPesquisavel(selectRegiao, {
+        idInput: 'input-regiao',
+        valorTodos: 'TODAS',
+        textoTodos: 'Todas as Regiões',
+        icone: 'fa-map',
+        campoPolo: 'Regiao',
+        sigla: siglaDaRegiao,
+        textoVazio: 'Nenhuma região encontrada'
+    });
+
+    criarComboPesquisavel(selectEstado, {
+        idInput: 'input-estado',
+        valorTodos: 'TODOS',
+        textoTodos: 'Todos os Estados',
+        icone: 'fa-location-dot',
+        campoPolo: 'Estado',
+        sigla: siglaDoEstado,
+        textoVazio: 'Nenhum estado encontrado'
+    });
+}
+
+function criarComboPesquisavel(select, config) {
+    if (!select) return;
+
+    select.classList.add('select-oculto');
+    select.tabIndex = -1;
+    select.setAttribute('aria-hidden', 'true');
+
+    const combo = document.createElement('div');
+    combo.className = 'combo';
+    combo.innerHTML = `
+        <div class="combo-campo">
+            <i class="fa-solid ${config.icone} combo-icone"></i>
+            <input type="text" id="${config.idInput}" class="combo-input" placeholder="${config.textoTodos}"
+                   autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list">
+            <button type="button" class="combo-limpar" title="${config.textoTodos}">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <i class="fa-solid fa-chevron-down combo-seta"></i>
+        </div>
+        <div class="combo-lista" role="listbox"></div>
+    `;
+    select.insertAdjacentElement('afterend', combo);
+
+    const input = combo.querySelector('.combo-input');
+    const lista = combo.querySelector('.combo-lista');
+    const btnLimpar = combo.querySelector('.combo-limpar');
+    let opcoesVisiveis = [];
+    let indiceAtivo = -1;
+
+    const estaAberto = () => combo.classList.contains('aberto');
+
+    // Mostra no campo o valor escolhido (também quando o filtro muda por outro caminho, ex.: ESC)
+    const sincronizar = () => {
+        const temValor = select.value !== config.valorTodos;
+        combo.classList.toggle('preenchido', temValor);
+        if (!estaAberto()) {
+            const opcaoAtual = select.options[select.selectedIndex];
+            input.value = temValor && opcaoAtual ? opcaoAtual.textContent : '';
+        }
+    };
+
+    const marcarAtiva = (indice) => {
+        indiceAtivo = indice;
+        lista.querySelectorAll('.combo-opcao').forEach((el, i) => {
+            el.classList.toggle('ativa', i === indice);
+            if (i === indice) el.scrollIntoView({ block: 'nearest' });
+        });
+    };
+
+    const desenharLista = () => {
+        const termo = normalizarTexto(input.value).trim();
+
+        const contagem = {};
+        database.forEach(polo => {
+            const chave = polo[config.campoPolo];
+            contagem[chave] = (contagem[chave] || 0) + 1;
+        });
+
+        const todasOpcoes = Array.from(select.options);
+        const totalGeral = todasOpcoes.reduce((soma, opt) => soma + (contagem[opt.value] || 0), 0);
+
+        // Busca pelo nome (sem acento) ou pela sigla: "sao", "São Paulo" ou "SP"
+        opcoesVisiveis = todasOpcoes.filter(opt => {
+            if (!termo) return true;
+            if (opt.value === config.valorTodos) return false;
+            return normalizarTexto(opt.textContent).includes(termo)
+                || normalizarTexto(config.sigla(opt.value)) === termo;
+        });
+
+        if (opcoesVisiveis.length === 0) {
+            indiceAtivo = -1;
+            lista.innerHTML = `
+                <div class="combo-vazio">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    ${config.textoVazio} para "${escaparHtml(input.value.trim())}"
+                </div>`;
+            return;
+        }
+
+        lista.innerHTML = opcoesVisiveis.map((opt, i) => {
+            const todos = opt.value === config.valorTodos;
+            const sigla = config.sigla(opt.value);
+            const marcador = todos
+                ? '<i class="fa-solid fa-earth-americas"></i>'
+                : (sigla ? escaparHtml(sigla) : '<i class="fa-solid fa-globe"></i>');
+            const quantidade = todos ? totalGeral : (contagem[opt.value] || 0);
+            const selecionada = opt.value === select.value ? ' selecionada' : '';
+
+            return `
+                <div class="combo-opcao${selecionada}" role="option" data-indice="${i}">
+                    <span class="combo-sigla">${marcador}</span>
+                    <span class="combo-nome">${escaparHtml(opt.textContent)}</span>
+                    <span class="combo-qtd">${quantidade} ${quantidade === 1 ? 'polo' : 'polos'}</span>
+                </div>`;
+        }).join('');
+
+        const indiceSelecionado = opcoesVisiveis.findIndex(opt => opt.value === select.value);
+        marcarAtiva(termo ? 0 : Math.max(0, indiceSelecionado));
+    };
+
+    const abrir = () => {
+        if (estaAberto()) return;
+        // Ao abrir, o texto vira dica e o campo fica livre para digitar
+        const opcaoAtual = select.options[select.selectedIndex];
+        input.placeholder = opcaoAtual ? opcaoAtual.textContent : config.textoTodos;
+        input.value = '';
+        combo.classList.add('aberto');
+        input.setAttribute('aria-expanded', 'true');
+        desenharLista();
+    };
+
+    const fechar = () => {
+        combo.classList.remove('aberto');
+        input.setAttribute('aria-expanded', 'false');
+        input.placeholder = config.textoTodos;
+        sincronizar();
+    };
+
+    const escolher = (valor) => {
+        fechar();
+        if (select.value !== valor) {
+            select.value = valor;
+            select.dispatchEvent(new Event('change'));
+        }
+        sincronizar();
+    };
+
+    input.addEventListener('focus', abrir);
+    input.addEventListener('click', abrir);
+    input.addEventListener('blur', fechar);
+    input.addEventListener('input', () => {
+        if (!estaAberto()) abrir();
+        desenharLista();
+    });
+
+    input.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (!estaAberto()) { abrir(); return; }
+            if (opcoesVisiveis.length === 0) return;
+            const passo = event.key === 'ArrowDown' ? 1 : -1;
+            marcarAtiva((indiceAtivo + passo + opcoesVisiveis.length) % opcoesVisiveis.length);
+        } else if (event.key === 'Enter') {
+            event.preventDefault();
+            if (estaAberto() && opcoesVisiveis[indiceAtivo]) {
+                escolher(opcoesVisiveis[indiceAtivo].value);
+                input.blur();
+            }
+        } else if ((event.key === 'Escape' || event.key === 'Esc') && estaAberto()) {
+            // Fecha só a lista, sem disparar o ESC que limpa todos os filtros
+            event.stopPropagation();
+            input.blur();
+        }
+    });
+
+    // mousedown + preventDefault mantém o foco no campo até a escolha ser aplicada
+    lista.addEventListener('mousedown', (event) => {
+        event.preventDefault();
+        const opcao = event.target.closest('.combo-opcao');
+        if (!opcao) return;
+        const escolhida = opcoesVisiveis[Number(opcao.dataset.indice)];
+        if (escolhida) {
+            escolher(escolhida.value);
+            input.blur();
+        }
+    });
+
+    lista.addEventListener('mousemove', (event) => {
+        const opcao = event.target.closest('.combo-opcao');
+        if (opcao && Number(opcao.dataset.indice) !== indiceAtivo) marcarAtiva(Number(opcao.dataset.indice));
+    });
+
+    combo.querySelector('.combo-campo').addEventListener('mousedown', (event) => {
+        if (event.target === input || event.target.closest('.combo-limpar')) return;
+        event.preventDefault();
+        if (document.activeElement === input) {
+            estaAberto() ? fechar() : abrir();
+        } else {
+            input.focus();
+        }
+    });
+
+    btnLimpar.addEventListener('mousedown', (event) => event.preventDefault());
+    btnLimpar.addEventListener('click', () => escolher(config.valorTodos));
+
+    combosPesquisaveis.push(sincronizar);
+    sincronizar();
+}
+
+function sincronizarCombosDeFiltro() {
+    combosPesquisaveis.forEach(sincronizar => sincronizar());
+}
+
+// =========================================================================
 // 7. FUNÇÃO DE ALTERNÂNCIA (TOGGLE) PARA CAIXA DE TEXTO DOS AMBIENTES
 // =========================================================================
 function toggleNotaAmbiente(checkboxId, boxId) {
@@ -382,16 +525,6 @@ document.addEventListener('input', (event) => {
     }
 });
 
-// Ambientes avaliados em cada polo (chave usada no Firebase, nome exibido e ícone)
-const AMBIENTES_POLO = [
-    { chave: 'recepcao', nome: 'Recepção', icone: 'fa-bell-concierge' },
-    { chave: 'coordenacao', nome: 'Sala de Coordenação', icone: 'fa-user-tie' },
-    { chave: 'estudos', nome: 'Sala de Estudos', icone: 'fa-book-open' },
-    { chave: 'informatica', nome: 'Laboratório de Informática', icone: 'fa-computer' },
-    { chave: 'especializado', nome: 'Laboratório Especializado', icone: 'fa-flask' },
-    { chave: 'outros', nome: 'Outros', icone: 'fa-ellipsis' }
-];
-
 // Etiqueta de status exibida na coluna "Status" da tabela
 function htmlStatusPolo(nomePolo) {
     return isPoloConcluido(nomePolo)
@@ -399,21 +532,11 @@ function htmlStatusPolo(nomePolo) {
         : '<span class="status-pill pending"><i class="fa-regular fa-clock"></i> Pendente</span>';
 }
 
-// Helper para verificar status de polo concluído (Firebase com fallback para LocalStorage)
-function isPoloConcluido(nomePolo) {
-    const chave = sanitizarChavePolo(nomePolo);
-    const dados = cachePolosFirebase[chave] || JSON.parse(localStorage.getItem(`polo_data_${nomePolo}`) || 'null');
-    
-    if (!dados) return false;
-    const temTexto = dados.anotacoes && dados.anotacoes.trim() !== '';
-    const temAmbiente = dados.recepcao || dados.coordenacao || dados.estudos || dados.informatica || dados.especializado || dados.outros;
-    return temTexto || temAmbiente;
-}
-
 // =========================================================================
 // 8. FILTRAGEM, RENDERIZAÇÃO DA TABELA, DETALHES E PAGINAÇÃO
 // =========================================================================
 function filtrarEDesenhar() {
+    sincronizarCombosDeFiltro();
     const busca = inputBusca ? inputBusca.value.toLowerCase().trim() : '';
     const regiao = selectRegiao ? selectRegiao.value : 'TODAS';
     const estado = selectEstado ? selectEstado.value : 'TODOS';
@@ -626,16 +749,13 @@ function atualizarIndicadores(dadosFiltrados, dadosBase = dadosFiltrados) {
     if (txtCardCobertura) txtCardCobertura.textContent = `${cobertura}%`;
     if (barraCobertura) barraCobertura.style.width = `${cobertura}%`;
 
-    let concluidos = 0;
-    database.forEach(p => {
-        if (isPoloConcluido(p.Nome)) concluidos++;
-    });
-
+    // Selos da lista: também seguem a busca/região/estado (sem contar o próprio
+    // filtro de Concluídos/Pendentes, para os dois números continuarem visíveis)
     if (txtBadgeConcluidos) {
-        txtBadgeConcluidos.textContent = `${concluidos} Concluídos`;
+        txtBadgeConcluidos.textContent = `${concluidosBase} Concluídos`;
     }
     if (txtBadgePendentes) {
-        txtBadgePendentes.textContent = `${database.length - concluidos} Pendentes`;
+        txtBadgePendentes.textContent = `${totalBase - concluidosBase} Pendentes`;
     }
 }
 
@@ -762,264 +882,6 @@ function atualizarStatusCheckLinha(nomePolo, index) {
     if (celulaStatus) celulaStatus.innerHTML = htmlStatusPolo(nomePolo);
 
     atualizarIndicadores(ultimosDadosFiltrados, ultimosDadosBase);
-}
-
-// =========================================================================
-// 10. RELATÓRIO POR REGIÃO (Atingidos, Pendentes, Pontos de Atenção e Anexo de Comentários)
-// =========================================================================
-function escaparHtml(texto) {
-    return String(texto || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-}
-
-function obterDadosPolo(nomePolo) {
-    const chave = sanitizarChavePolo(nomePolo);
-    return cachePolosFirebase[chave] || JSON.parse(localStorage.getItem(`polo_data_${nomePolo}`) || 'null');
-}
-
-// Palavras/expressões (sem acento, minúsculas) que indicam um problema nos comentários
-const TERMOS_DE_ATENCAO = [
-    'reforma', 'falta', 'faltando', 'faltam', 'ausencia', 'ausente', 'nao possui', 'nao tem', 'nao ha',
-    'nao existe', 'nao funciona', 'inexistente', 'quebrad', 'danificad', 'estragad', 'defeito', 'precisa',
-    'necessita', 'necessario', 'inadequad', 'insuficiente', 'precari', 'improvis', 'problema', 'irregular',
-    'pendente', 'pendencia', 'ruim', 'infiltra', 'goteira', 'mofo', 'umidade', 'sujo', 'sujeira',
-    'apertad', 'pequen', 'adequar', 'adequacao', 'manutencao', 'desativad', 'interditad', 'em obra',
-    'aguardando', 'nao atende', 'nao esta', 'sem acessibilidade', 'sem '
-];
-
-// Expressões que contêm um termo acima mas indicam que está tudo certo
-const TERMOS_POSITIVOS = ['sem problema', 'nenhum problema', 'sem pendencia', 'nenhuma pendencia', 'nao precisa', 'nao ha problema'];
-
-function normalizarTexto(texto) {
-    return String(texto || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-}
-
-// Separa as anotações em frases e devolve só as que mencionam algum problema
-function extrairObservacoesDeAtencao(dados, nomesAmbientes) {
-    const fontes = [{ local: 'Geral', texto: dados.anotacoes }];
-    Object.keys(nomesAmbientes).forEach(amb => {
-        if (dados[amb]) fontes.push({ local: nomesAmbientes[amb], texto: dados[`note_${amb}`] });
-    });
-
-    const observacoes = [];
-    fontes.forEach(({ local, texto }) => {
-        if (!texto || !texto.trim()) return;
-
-        String(texto)
-            .split(/\n+|(?<=[.!?;])\s+/)
-            .map(frase => frase.replace(/^[\s\-•*/]+|[\s/]+$/g, '').trim())
-            .filter(frase => frase.length > 2)
-            .forEach(frase => {
-                const fraseNormalizada = ` ${normalizarTexto(frase)} `;
-                if (TERMOS_POSITIVOS.some(t => fraseNormalizada.includes(t))) return;
-                if (TERMOS_DE_ATENCAO.some(t => fraseNormalizada.includes(t))) {
-                    observacoes.push({ local, texto: frase });
-                }
-            });
-    });
-    return observacoes;
-}
-
-function gerarRelatorioPorRegiao() {
-    if (database.length === 0) {
-        Swal.fire('Aguarde', 'Os polos ainda estão sendo carregados da planilha.', 'info');
-        return;
-    }
-
-    const nomesAmbientes = {
-        recepcao: 'Recepção',
-        coordenacao: 'Sala de Coordenação',
-        estudos: 'Sala de Estudos',
-        informatica: 'Laboratório de Informática',
-        especializado: 'Laboratório Especializado',
-        outros: 'Outros'
-    };
-
-    // Respeita o filtro de região da tela, se houver um selecionado
-    const regiaoFiltro = selectRegiao ? selectRegiao.value : 'TODAS';
-    const polosBase = (regiaoFiltro === 'TODAS' || regiaoFiltro.includes('Todas'))
-        ? database
-        : database.filter(p => p.Regiao === regiaoFiltro);
-
-    // Agrupa os polos por região
-    const ordemRegioes = ['Norte', 'Nordeste', 'Centro-Oeste', 'Sudeste', 'Sul', 'Estrangeiro'];
-    const grupos = {};
-    polosBase.forEach(polo => {
-        if (!grupos[polo.Regiao]) grupos[polo.Regiao] = [];
-        grupos[polo.Regiao].push(polo);
-    });
-    const regioes = Object.keys(grupos).sort((a, b) => {
-        const ia = ordemRegioes.indexOf(a), ib = ordemRegioes.indexOf(b);
-        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b);
-    });
-
-    // "Outros" não entra em "ambientes ausentes": não é um ambiente obrigatório
-    const ambientesAvaliados = Object.keys(nomesAmbientes).filter(amb => amb !== 'outros');
-
-    let totalGeral = 0, totalAtingidos = 0, totalAtencao = 0;
-    let htmlResumo = '';
-    let htmlRegioes = '';
-
-    regioes.forEach(regiao => {
-        const polos = grupos[regiao].slice().sort((a, b) => a.Nome.localeCompare(b.Nome));
-        const feitos = polos.filter(p => isPoloConcluido(p.Nome));
-        const pendentes = polos.filter(p => !isPoloConcluido(p.Nome));
-        const percentual = polos.length ? Math.round((feitos.length / polos.length) * 100) : 0;
-
-        // Pontos de atenção de cada polo visitado: infraestrutura ausente + trechos dos comentários
-        // que indicam problema. Polos com mais pontos aparecem primeiro.
-        const pontosAtencao = feitos
-            .map(polo => {
-                const dados = obterDadosPolo(polo.Nome) || {};
-                return {
-                    polo,
-                    ausentes: ambientesAvaliados.filter(amb => !dados[amb]),
-                    observacoes: extrairObservacoesDeAtencao(dados, nomesAmbientes)
-                };
-            })
-            .filter(p => p.ausentes.length || p.observacoes.length)
-            .sort((a, b) => (b.ausentes.length + b.observacoes.length) - (a.ausentes.length + a.observacoes.length)
-                          || a.polo.Nome.localeCompare(b.polo.Nome));
-
-        totalGeral += polos.length;
-        totalAtingidos += feitos.length;
-        totalAtencao += pontosAtencao.length;
-
-        htmlResumo += `
-            <tr>
-                <td>${escaparHtml(regiao)}</td>
-                <td>${polos.length}</td>
-                <td>${feitos.length}</td>
-                <td>${pendentes.length}</td>
-                <td>${percentual}%</td>
-                <td>${pontosAtencao.length}</td>
-            </tr>`;
-
-        const htmlAtencao = pontosAtencao.map(({ polo, ausentes, observacoes }) => {
-            const total = ausentes.length + observacoes.length;
-            return `
-                <div class="atencao">
-                    <div class="comentario-titulo">
-                        ${escaparHtml(polo.Nome)} <span>(${escaparHtml(polo.Estado)})</span>
-                        <em class="tag-prioridade">${total} ${total === 1 ? 'ponto' : 'pontos'}</em>
-                    </div>
-                    ${ausentes.length ? `
-                        <div class="atencao-bloco">
-                            <strong>Infraestrutura ausente:</strong>
-                            ${ausentes.map(amb => `<span class="chip-ausente">${nomesAmbientes[amb]}</span>`).join('')}
-                        </div>` : ''}
-                    ${observacoes.length ? `
-                        <div class="atencao-bloco">
-                            <strong>Observações das visitas:</strong>
-                            <ul>${observacoes.map(o => `<li><b>${escaparHtml(o.local)}:</b> ${escaparHtml(o.texto)}</li>`).join('')}</ul>
-                        </div>` : ''}
-                </div>`;
-        }).join('');
-
-        const listaPolos = lista => lista.length
-            ? `<ul class="lista-polos">${lista.map(p => `<li>${escaparHtml(p.Nome)} <span>(${escaparHtml(p.Estado)})</span></li>`).join('')}</ul>`
-            : '<p class="vazio">Nenhum polo.</p>';
-
-        htmlRegioes += `
-            <section class="regiao">
-                <h2>${escaparHtml(regiao)}</h2>
-                <div class="kpis">
-                    <div class="kpi"><span>${polos.length}</span>Total de polos</div>
-                    <div class="kpi ok"><span>${feitos.length}</span>Polos atingidos</div>
-                    <div class="kpi pend"><span>${pendentes.length}</span>Pendentes</div>
-                    <div class="kpi"><span>${percentual}%</span>Cobertura</div>
-                </div>
-                <div class="barra"><div style="width: ${percentual}%"></div></div>
-
-                <h3 class="alerta">⚠ Pontos de atenção (${pontosAtencao.length})</h3>
-                ${htmlAtencao || `<p class="vazio">${feitos.length ? 'Nenhum ponto de atenção identificado nos polos visitados desta região.' : 'Nenhum polo visitado nesta região ainda.'}</p>`}
-
-                <div class="colunas">
-                    <div>
-                        <h3 class="ok">✔ Polos feitos (${feitos.length})</h3>
-                        ${listaPolos(feitos)}
-                    </div>
-                    <div>
-                        <h3 class="pend">⏳ Polos pendentes (${pendentes.length})</h3>
-                        ${listaPolos(pendentes)}
-                    </div>
-                </div>
-            </section>`;
-    });
-
-    const percentualGeral = totalGeral ? Math.round((totalAtingidos / totalGeral) * 100) : 0;
-    const dataEmissao = new Date().toLocaleString('pt-BR');
-
-    const janela = window.open('', '_blank');
-    if (!janela) {
-        Swal.fire('Pop-up bloqueado', 'Permita pop-ups para este site para visualizar o relatório.', 'warning');
-        return;
-    }
-
-    janela.document.write(`<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<title>Relatório de Visitas por Região</title>
-<style>
-    body { font-family: 'Inter', Arial, sans-serif; color: #1e293b; margin: 0; padding: 32px; background: #fff; }
-    .topo { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #2563eb; padding-bottom: 16px; margin-bottom: 24px; }
-    h1 { margin: 0; font-size: 1.6rem; color: #1e3a8a; }
-    .sub { color: #64748b; font-size: 0.9rem; margin-top: 4px; }
-    .btn-imprimir { background: #2563eb; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 32px; font-size: 0.9rem; }
-    th, td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; }
-    th { background: #f1f5f9; }
-    tfoot td { font-weight: 700; background: #f8fafc; }
-    .regiao { margin-bottom: 40px; page-break-inside: auto; }
-    .regiao + .regiao { page-break-before: always; }
-    h2 { color: #1e3a8a; border-left: 5px solid #2563eb; padding-left: 10px; }
-    h3 { font-size: 1rem; margin: 24px 0 10px; }
-    h3.ok { color: #059669; } h3.pend { color: #d97706; }
-    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-    .kpi { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-size: 0.8rem; color: #64748b; }
-    .kpi span { display: block; font-size: 1.5rem; font-weight: 700; color: #1e293b; }
-    .kpi.ok span { color: #059669; } .kpi.pend span { color: #d97706; }
-    .barra { height: 10px; background: #fef3c7; border-radius: 5px; margin-top: 12px; overflow: hidden; }
-    .barra div { height: 100%; background: #10b981; }
-    .comentario-titulo { font-weight: 700; }
-    .comentario-titulo span, .lista-polos span { color: #64748b; font-weight: 400; font-size: 0.85rem; }
-    .colunas { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-    .lista-polos { margin: 0; padding-left: 18px; font-size: 0.9rem; line-height: 1.6; }
-    .vazio { color: #94a3b8; font-style: italic; font-size: 0.9rem; }
-    h3.alerta { color: #b45309; }
-    .atencao { border: 1px solid #fde68a; border-left: 5px solid #f59e0b; background: #fffbeb; border-radius: 8px; padding: 12px 16px; margin-bottom: 10px; page-break-inside: avoid; }
-    .atencao-bloco { margin-top: 10px; font-size: 0.88rem; }
-    .atencao-bloco > strong { display: block; margin-bottom: 6px; color: #92400e; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
-    .atencao-bloco ul { margin: 0; padding-left: 18px; line-height: 1.55; }
-    .chip-ausente { display: inline-block; margin: 0 6px 6px 0; padding: 3px 10px; border-radius: 999px; background: #fee2e2; color: #b91c1c; font-size: 0.8rem; font-weight: 600; }
-    .tag-prioridade { font-style: normal; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 999px; margin-left: 8px; background: #fef3c7; color: #b45309; vertical-align: 2px; }
-    @media print { .btn-imprimir { display: none; } body { padding: 0; } }
-</style>
-</head>
-<body>
-    <div class="topo">
-        <div>
-            <h1>Relatório de Visitas aos Polos por Região</h1>
-            <div class="sub">Emitido em ${dataEmissao}${regiaoFiltro === 'TODAS' || regiaoFiltro.includes('Todas') ? '' : ` · Região: ${escaparHtml(regiaoFiltro)}`}</div>
-        </div>
-        <button class="btn-imprimir" onclick="window.print()">Imprimir / Salvar PDF</button>
-    </div>
-
-    <h2>Resumo Geral</h2>
-    <table>
-        <thead><tr><th>Região</th><th>Total de Polos</th><th>Atingidos</th><th>Pendentes</th><th>Cobertura</th><th>Polos com Pontos de Atenção</th></tr></thead>
-        <tbody>${htmlResumo}</tbody>
-        <tfoot><tr><td>Total</td><td>${totalGeral}</td><td>${totalAtingidos}</td><td>${totalGeral - totalAtingidos}</td><td>${percentualGeral}%</td><td>${totalAtencao}</td></tr></tfoot>
-    </table>
-
-    ${htmlRegioes}
-</body>
-</html>`);
-    janela.document.close();
 }
 
 function agendarVisitaPolo(nomePolo) {
