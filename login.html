@@ -201,6 +201,153 @@
             text-align: center;
             font-weight: 500;
         }
+
+        .info-message {
+            color: #1e40af;
+            font-size: 0.85rem;
+            margin-bottom: 22px;
+            padding: 12px 14px;
+            background-color: #eff6ff;
+            border: 1px solid #dbeafe;
+            border-radius: 8px;
+            line-height: 1.5;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .info-message i { margin-top: 2px; }
+
+        .sucesso { color: #047857; background-color: #ecfdf5; border-color: #d1fae5; }
+
+        .btn-submit:disabled { opacity: 0.7; cursor: wait; }
+
+        .etapa[hidden],
+        .abas-acesso[hidden] { display: none; }
+
+        /* Abas Regulatório / Consulta */
+        .abas-acesso {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            padding: 4px;
+            margin-bottom: 28px;
+            background-color: #f1f5f9;
+            border-radius: 12px;
+        }
+
+        .aba-acesso {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            height: 40px;
+            border: none;
+            border-radius: 9px;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .aba-acesso:hover { color: var(--text-dark); }
+
+        .aba-acesso.ativa {
+            background-color: #ffffff;
+            color: var(--primary-color);
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+        }
+
+        .consulta-recursos {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .consulta-recursos li {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.9rem;
+            color: #374151;
+        }
+
+        .consulta-recursos i {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            flex-shrink: 0;
+            border-radius: 8px;
+            background-color: #eff6ff;
+            color: var(--primary-color);
+            font-size: 0.85rem;
+        }
+
+        a.btn-submit { text-decoration: none; }
+
+        /* Celular: menos espaço em volta do formulário */
+        @media (max-width: 480px) {
+            .form-panel { padding: 20px 14px; align-items: flex-start; }
+            .login-container { padding: 28px 20px; border-radius: 16px; }
+            .brand-logo { margin-bottom: 20px; }
+            h2 { font-size: 1.3rem; }
+            p { margin-bottom: 22px; }
+            .abas-acesso { margin-bottom: 22px; }
+            .form-control { font-size: 16px; } /* evita o zoom automático do iPhone */
+        }
+
+        .btn-mostrar-senha {
+            position: absolute;
+            right: 8px;
+            width: 34px;
+            height: 34px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: 8px;
+        }
+
+        .btn-mostrar-senha:hover { background-color: #eef2f7; color: var(--text-dark); }
+        .btn-mostrar-senha i { position: static; }
+        .input-wrapper .form-control.com-olho { padding-right: 46px; }
+
+        .regras-senha {
+            list-style: none;
+            margin: -6px 0 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .regras-senha li i { width: 16px; color: #cbd5e1; }
+        .regras-senha li.ok { color: #047857; }
+        .regras-senha li.ok i { color: #10b981; }
+
+        .links-rodape {
+            margin-top: 18px;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+
+        .links-rodape button {
+            border: none;
+            background: none;
+            color: var(--primary-color);
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .links-rodape button:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -221,7 +368,7 @@
             <ul class="brand-features">
                 <li><i class="fa-solid fa-building-columns"></i> Lista de polos com status de visita</li>
                 <li><i class="fa-solid fa-map-location-dot"></i> Mapa da distribuição dos polos por estado</li>
-                <li><i class="fa-solid fa-file-lines"></i> Relatórios por região prontos para imprimir</li>
+                <li><i class="fa-solid fa-file-lines"></i> Relatórios por região prontos em PDF</li>
             </ul>
         </div>
 
@@ -231,76 +378,375 @@
     <!-- FORMULÁRIO (Direita) -->
     <main class="form-panel">
     <div class="login-container">
-        <div class="header-box">
-            <img src="logo-unifecaf.png.png" alt="Logo UniFECAF" class="brand-logo">
-            <h2>Acesso ao Painel</h2>
-            <p>Entre com seu e-mail corporativo para continuar</p>
-        </div>
 
-        <!-- FORMULÁRIO INTEGRADO AO SEU SCRIPT.JS -->
-        <form id="form-login">
-            <div class="form-group">
-                <label for="email">E-mail Corporativo</label>
-                <div class="input-wrapper">
-                    <i class="fa-solid fa-envelope"></i>
-                    <input type="email" id="email" class="form-control" placeholder="exemplo@unifecaf.com.br" required autocomplete="email">
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="senha">Senha de Acesso</label>
-                <div class="input-wrapper">
-                    <i class="fa-solid fa-lock"></i>
-                    <input type="password" id="senha" class="form-control" placeholder="••••••••" required autocomplete="current-password">
-                </div>
-            </div>
-
-            <button type="submit" class="btn-submit">
-                <i class="fa-solid fa-right-to-bracket"></i> Entrar no Sistema
+        <!-- ABAS: Regulatório (com login) ou Consulta (sem login) -->
+        <div class="abas-acesso" id="abas-acesso" role="tablist">
+            <button type="button" class="aba-acesso ativa" data-aba="login" role="tab">
+                <i class="fa-solid fa-user-shield"></i> Regulatório
             </button>
-        </form>
-
-        <!-- Mensagem de feedback de erro gerenciada pelo Script -->
-        <div id="msg-erro" class="error-message">
-            <i class="fa-solid fa-circle-exclamation"></i> E-mail ou senha incorretos!
+            <button type="button" class="aba-acesso" data-aba="consulta" role="tab">
+                <i class="fa-solid fa-magnifying-glass-chart"></i> Consulta
+            </button>
         </div>
+
+        <!-- CONSULTA: acesso livre, somente leitura -->
+        <section id="etapa-consulta" class="etapa" hidden>
+            <div class="header-box">
+                <img src="logo-unifecaf.png.png" alt="Logo UniFECAF" class="brand-logo">
+                <h2>Consulta das Visitas</h2>
+                <p>Acompanhe o andamento das visitas aos polos, sem precisar de senha</p>
+            </div>
+
+            <ul class="consulta-recursos">
+                <li><i class="fa-solid fa-map"></i> Visão separada por região e por estado</li>
+                <li><i class="fa-solid fa-building-columns"></i> Situação e anotações de cada polo</li>
+                <li><i class="fa-solid fa-file-arrow-down"></i> Relatório por região em PDF</li>
+                <li><i class="fa-solid fa-folder-open"></i> Acesso aos vídeos das visitas</li>
+            </ul>
+
+            <a href="consulta.html" class="btn-submit">
+                <i class="fa-solid fa-arrow-right"></i> Abrir Consulta
+            </a>
+        </section>
+
+        <!-- ETAPA 1: E-MAIL E SENHA -->
+        <section id="etapa-login" class="etapa">
+            <div class="header-box">
+                <img src="logo-unifecaf.png.png" alt="Logo UniFECAF" class="brand-logo">
+                <h2>Acesso ao Painel</h2>
+                <p>Entre com seu e-mail corporativo para continuar</p>
+            </div>
+
+            <form id="form-login">
+                <div class="form-group">
+                    <label for="email">E-mail Corporativo</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-envelope"></i>
+                        <input type="email" id="email" class="form-control" placeholder="exemplo@fecaf.com.br" required autocomplete="email">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="senha">Senha de Acesso</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="senha" class="form-control com-olho" placeholder="••••••••" required autocomplete="current-password">
+                        <button type="button" class="btn-mostrar-senha" data-alvo="senha" title="Mostrar senha"><i class="fa-solid fa-eye"></i></button>
+                    </div>
+                </div>
+
+                <button type="submit" id="btn-entrar" class="btn-submit">
+                    <i class="fa-solid fa-right-to-bracket"></i> Entrar no Sistema
+                </button>
+            </form>
+
+            <div class="links-rodape">
+                <button type="button" id="btn-esqueci">Esqueci minha senha</button>
+            </div>
+        </section>
+
+        <!-- ETAPA 2: NOVA SENHA (obrigatória no primeiro acesso com a senha padrão) -->
+        <section id="etapa-nova-senha" class="etapa" hidden>
+            <div class="header-box">
+                <img src="logo-unifecaf.png.png" alt="Logo UniFECAF" class="brand-logo">
+                <h2>Crie sua nova senha</h2>
+                <p id="txt-email-nova-senha"></p>
+            </div>
+
+            <div class="info-message">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span>Este é o seu primeiro acesso. Por segurança, troque a senha padrão por uma senha só sua.</span>
+            </div>
+
+            <form id="form-nova-senha">
+                <div class="form-group">
+                    <label for="nova-senha">Nova senha</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-key"></i>
+                        <input type="password" id="nova-senha" class="form-control com-olho" placeholder="Digite a nova senha" required autocomplete="new-password">
+                        <button type="button" class="btn-mostrar-senha" data-alvo="nova-senha" title="Mostrar senha"><i class="fa-solid fa-eye"></i></button>
+                    </div>
+                </div>
+
+                <ul class="regras-senha" id="regras-senha">
+                    <li data-regra="tamanho"><i class="fa-solid fa-circle-check"></i> Pelo menos 8 caracteres</li>
+                    <li data-regra="letra"><i class="fa-solid fa-circle-check"></i> Pelo menos uma letra</li>
+                    <li data-regra="numero"><i class="fa-solid fa-circle-check"></i> Pelo menos um número</li>
+                </ul>
+
+                <div class="form-group">
+                    <label for="confirmar-senha">Confirme a nova senha</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="confirmar-senha" class="form-control com-olho" placeholder="Repita a nova senha" required autocomplete="new-password">
+                        <button type="button" class="btn-mostrar-senha" data-alvo="confirmar-senha" title="Mostrar senha"><i class="fa-solid fa-eye"></i></button>
+                    </div>
+                </div>
+
+                <button type="submit" id="btn-salvar-senha" class="btn-submit">
+                    <i class="fa-solid fa-check"></i> Salvar nova senha e entrar
+                </button>
+            </form>
+
+            <div class="links-rodape">
+                <button type="button" id="btn-voltar-login">Voltar ao login</button>
+            </div>
+        </section>
+
+        <!-- Mensagens de erro/sucesso -->
+        <div id="msg-erro" class="error-message"></div>
     </div>
     </main>
 
-    <!-- Vinculação ao script do painel principal para rodar as validações -->
+    <!-- Firebase: Authentication guarda as senhas; o Realtime Database guarda se a senha padrão já foi trocada -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="firebase-config.js"></script>
+
 <script>
     document.addEventListener("DOMContentLoaded", function () {
+        const auth = firebase.auth();
+
+        const etapaLogin = document.getElementById("etapa-login");
+        const etapaNovaSenha = document.getElementById("etapa-nova-senha");
         const formLogin = document.getElementById("form-login");
-        
-        if (formLogin) {
-            formLogin.addEventListener("submit", function (e) {
-                e.preventDefault(); 
-                
-                const emailDigitado = document.getElementById("email").value.trim();
-                const senhaDigitada = document.getElementById("senha").value;
-                const msgErro = document.getElementById("msg-erro");
+        const formNovaSenha = document.getElementById("form-nova-senha");
+        const inputEmail = document.getElementById("email");
+        const inputSenha = document.getElementById("senha");
+        const inputNovaSenha = document.getElementById("nova-senha");
+        const inputConfirmar = document.getElementById("confirmar-senha");
+        const msgErro = document.getElementById("msg-erro");
 
-                // ==========================================
-                // CONFIGURAÇÃO DOS USUÁRIOS PERMITIDOS
-                // ==========================================
-                const usuariosPermitidos = [
-                    { email: "regulatorio@fecaf.com.br", senha: "fecaf2026" },
-                    { email: "paulo.santos@fecaf.com.br", senha: "fecaf2026" },
-                    { email: "euvas.santos@fecaf.com.br", senha: "fecaf2026" },
-                    { email: "thayna.oliveira@fecaf.com.br", senha: "fecaf2026" },
-                    { email: "yago.brito@fecaf.com.br", senha: "fecaf2026" }
-                ];
+        // Senha usada no login, para impedir que a "nova" senha seja igual à padrão
+        let senhaUsadaNoLogin = "";
 
-                // Varre a lista procurando se existe um e-mail e senha correspondentes
-                const usuarioValido = usuariosPermitidos.find(u => u.email === emailDigitado && u.senha === senhaDigitada);
+        // Quem já entrou (e já trocou a senha) vai direto para o painel
+        auth.onAuthStateChanged(usuario => {
+            if (usuario && localStorage.getItem("painel_polos_logado") === "true") {
+                window.location.replace("index.html");
+            }
+        });
 
-                if (usuarioValido) {
-                    localStorage.setItem("painel_polos_logado", "true");
-                    window.location.href = "index.html"; // Vai para o painel
-                } else {
-                    if (msgErro) msgErro.style.display = "block";
-                }
-            });
+        // ==========================================
+        // MENSAGENS
+        // ==========================================
+        function mostrarMensagem(texto, tipo = "erro") {
+            const icone = tipo === "sucesso" ? "fa-circle-check" : "fa-circle-exclamation";
+            msgErro.innerHTML = `<i class="fa-solid ${icone}"></i> ${texto}`;
+            msgErro.classList.toggle("sucesso", tipo === "sucesso");
+            msgErro.style.display = "block";
         }
+
+        function esconderMensagem() {
+            msgErro.style.display = "none";
+        }
+
+        function traduzirErro(erro) {
+            switch (erro && erro.code) {
+                case "auth/invalid-email":
+                    return "E-mail inválido.";
+                case "auth/user-disabled":
+                    return "Este acesso foi desativado. Fale com o Regulatório.";
+                case "auth/user-not-found":
+                case "auth/wrong-password":
+                case "auth/invalid-credential":
+                case "auth/invalid-login-credentials":
+                    return "E-mail ou senha incorretos!";
+                case "auth/too-many-requests":
+                    return "Muitas tentativas seguidas. Aguarde alguns minutos e tente novamente.";
+                case "auth/network-request-failed":
+                    return "Sem conexão com a internet. Verifique e tente novamente.";
+                case "auth/weak-password":
+                    return "Senha muito fraca. Use pelo menos 8 caracteres, com letras e números.";
+                case "auth/configuration-not-found":
+                case "auth/operation-not-allowed":
+                    return "O login por e-mail ainda não foi ativado no Firebase (Authentication → Sign-in method → E-mail/senha).";
+                case "auth/requires-recent-login":
+                    return "Sua sessão expirou. Volte ao login e entre novamente com a senha padrão.";
+                default:
+                    return "Não foi possível concluir agora. Tente novamente.";
+            }
+        }
+
+        // Bloqueia o botão enquanto o Firebase responde
+        function travarBotao(botao, travar, textoCarregando) {
+            if (travar) {
+                botao.dataset.conteudo = botao.innerHTML;
+                botao.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${textoCarregando}`;
+                botao.disabled = true;
+            } else {
+                botao.innerHTML = botao.dataset.conteudo || botao.innerHTML;
+                botao.disabled = false;
+            }
+        }
+
+        function entrarNoSistema() {
+            localStorage.setItem("painel_polos_logado", "true");
+            window.location.href = "index.html";
+        }
+
+        const etapaConsulta = document.getElementById("etapa-consulta");
+        const abasAcesso = document.getElementById("abas-acesso");
+
+        function mostrarEtapa(etapa) {
+            etapaLogin.hidden = etapa !== "login";
+            etapaNovaSenha.hidden = etapa !== "nova-senha";
+            etapaConsulta.hidden = etapa !== "consulta";
+            // Durante a troca de senha as abas somem, para a pessoa terminar o cadastro
+            abasAcesso.hidden = etapa === "nova-senha";
+            abasAcesso.querySelectorAll(".aba-acesso").forEach(aba => {
+                aba.classList.toggle("ativa", aba.dataset.aba === etapa);
+                aba.setAttribute("aria-selected", aba.dataset.aba === etapa);
+            });
+            esconderMensagem();
+        }
+
+        abasAcesso.addEventListener("click", function (e) {
+            const aba = e.target.closest(".aba-acesso");
+            if (aba) mostrarEtapa(aba.dataset.aba);
+        });
+
+        // ==========================================
+        // ETAPA 1: LOGIN
+        // ==========================================
+        formLogin.addEventListener("submit", async function (e) {
+            e.preventDefault();
+            esconderMensagem();
+
+            const email = inputEmail.value.trim();
+            const senha = inputSenha.value;
+            const botao = document.getElementById("btn-entrar");
+            travarBotao(botao, true, "Entrando...");
+
+            try {
+                const { user } = await auth.signInWithEmailAndPassword(email, senha);
+                senhaUsadaNoLogin = senha;
+
+                const registro = await window.database.ref(`usuarios/${user.uid}/senhaAlterada`).once("value");
+
+                if (registro.val() === true) {
+                    entrarNoSistema();
+                } else {
+                    // Primeiro acesso: ainda está com a senha padrão
+                    document.getElementById("txt-email-nova-senha").textContent = user.email;
+                    mostrarEtapa("nova-senha");
+                    inputNovaSenha.focus();
+                }
+            } catch (erro) {
+                console.error("Erro no login:", erro);
+                if (auth.currentUser) auth.signOut();
+                mostrarMensagem(traduzirErro(erro));
+            } finally {
+                travarBotao(botao, false);
+            }
+        });
+
+        // ==========================================
+        // ESQUECI MINHA SENHA (o Firebase envia um link por e-mail)
+        // ==========================================
+        document.getElementById("btn-esqueci").addEventListener("click", async function () {
+            const email = inputEmail.value.trim();
+            if (!email) {
+                mostrarMensagem("Digite seu e-mail no campo acima e clique de novo em \"Esqueci minha senha\".");
+                inputEmail.focus();
+                return;
+            }
+
+            try {
+                await auth.sendPasswordResetEmail(email);
+                mostrarMensagem("Se este e-mail tiver acesso ao painel, você vai receber um link para criar uma nova senha. Confira também a caixa de spam.", "sucesso");
+            } catch (erro) {
+                console.error("Erro ao enviar redefinição de senha:", erro);
+                mostrarMensagem(traduzirErro(erro));
+            }
+        });
+
+        // ==========================================
+        // ETAPA 2: NOVA SENHA
+        // ==========================================
+        const REGRAS_SENHA = {
+            tamanho: senha => senha.length >= 8,
+            letra: senha => /[a-zA-ZÀ-ÿ]/.test(senha),
+            numero: senha => /\d/.test(senha)
+        };
+
+        function senhaAtendeRegras(senha) {
+            return Object.values(REGRAS_SENHA).every(regra => regra(senha));
+        }
+
+        // Marca em verde as regras já cumpridas enquanto a pessoa digita
+        inputNovaSenha.addEventListener("input", function () {
+            document.querySelectorAll("#regras-senha li").forEach(item => {
+                item.classList.toggle("ok", REGRAS_SENHA[item.dataset.regra](inputNovaSenha.value));
+            });
+        });
+
+        formNovaSenha.addEventListener("submit", async function (e) {
+            e.preventDefault();
+            esconderMensagem();
+
+            const novaSenha = inputNovaSenha.value;
+
+            if (!senhaAtendeRegras(novaSenha)) {
+                mostrarMensagem("A nova senha precisa ter pelo menos 8 caracteres, com letras e números.");
+                return;
+            }
+            if (novaSenha !== inputConfirmar.value) {
+                mostrarMensagem("As duas senhas digitadas não são iguais.");
+                return;
+            }
+            if (novaSenha === senhaUsadaNoLogin) {
+                mostrarMensagem("A nova senha precisa ser diferente da senha padrão.");
+                return;
+            }
+
+            const usuario = auth.currentUser;
+            if (!usuario) {
+                mostrarEtapa("login");
+                mostrarMensagem("Sua sessão expirou. Entre novamente com a senha padrão.");
+                return;
+            }
+
+            const botao = document.getElementById("btn-salvar-senha");
+            travarBotao(botao, true, "Salvando...");
+
+            try {
+                await usuario.updatePassword(novaSenha);
+                await window.database.ref(`usuarios/${usuario.uid}`).update({
+                    email: usuario.email,
+                    senhaAlterada: true,
+                    senhaAlteradaEm: firebase.database.ServerValue.TIMESTAMP
+                });
+                entrarNoSistema();
+            } catch (erro) {
+                console.error("Erro ao trocar a senha:", erro);
+                mostrarMensagem(traduzirErro(erro));
+            } finally {
+                travarBotao(botao, false);
+            }
+        });
+
+        document.getElementById("btn-voltar-login").addEventListener("click", function () {
+            auth.signOut();
+            senhaUsadaNoLogin = "";
+            inputSenha.value = "";
+            inputNovaSenha.value = "";
+            inputConfirmar.value = "";
+            mostrarEtapa("login");
+        });
+
+        // Botão de "olho" para mostrar/ocultar a senha
+        document.querySelectorAll(".btn-mostrar-senha").forEach(botao => {
+            botao.addEventListener("click", function () {
+                const campo = document.getElementById(botao.dataset.alvo);
+                const mostrar = campo.type === "password";
+                campo.type = mostrar ? "text" : "password";
+                botao.innerHTML = `<i class="fa-solid ${mostrar ? "fa-eye-slash" : "fa-eye"}"></i>`;
+                botao.title = mostrar ? "Ocultar senha" : "Mostrar senha";
+            });
+        });
     });
 </script>
+</body>
+</html>
