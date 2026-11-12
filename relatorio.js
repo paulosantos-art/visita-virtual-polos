@@ -265,6 +265,60 @@ function fecharPreviaRelatorio() {
     return true;
 }
 
+// O navegador não consegue desenhar uma imagem muito alta (o relatório inteiro passa
+// de 30 páginas) e devolve tudo em branco. Por isso o PDF é montado em blocos:
+// o resumo, e depois cada região — dividida em partes se for grande.
+const ALTURA_MAXIMA_BLOCO_PDF = 8000; // em px da tela; com scale 2 fica bem abaixo do limite
+
+function montarBlocosDoPdf(documento) {
+    const blocos = [];
+    let atual = [];
+    const fecharBloco = () => {
+        if (atual.length) blocos.push(atual);
+        atual = [];
+    };
+
+    const embrulharRegiao = partes => {
+        const secao = document.createElement('section');
+        secao.className = 'regiao';
+        partes.forEach(parte => secao.appendChild(parte.cloneNode(true)));
+        return secao;
+    };
+
+    Array.from(documento.children).forEach(filho => {
+        if (filho.classList.contains('html2pdf__page-break')) return;
+
+        if (!filho.matches('section.regiao')) {
+            atual.push(filho.cloneNode(true));
+            return;
+        }
+
+        fecharBloco();
+        let partes = [];
+        let alturaPartes = 0;
+        Array.from(filho.children).forEach(parte => {
+            const altura = parte.offsetHeight;
+            if (partes.length && alturaPartes + altura > ALTURA_MAXIMA_BLOCO_PDF) {
+                blocos.push([embrulharRegiao(partes)]);
+                partes = [];
+                alturaPartes = 0;
+            }
+            partes.push(parte);
+            alturaPartes += altura;
+        });
+        if (partes.length) blocos.push([embrulharRegiao(partes)]);
+    });
+    fecharBloco();
+
+    // Cada bloco recebe a mesma "folha" da prévia, para manter o visual
+    return blocos.map(elementos => {
+        const folha = document.createElement('div');
+        folha.className = 'relatorio-doc gerando-pdf';
+        elementos.forEach(el => folha.appendChild(el));
+        return folha;
+    });
+}
+
 // Gera o arquivo PDF a partir da prévia e baixa direto, sem passar pela impressora
 async function baixarRelatorioPdf(elemento, nomeArquivo, botao) {
     if (typeof html2pdf === 'undefined') {
@@ -278,14 +332,24 @@ async function baixarRelatorioPdf(elemento, nomeArquivo, botao) {
     elemento.classList.add('gerando-pdf');
 
     try {
-        await html2pdf().set({
+        const blocos = montarBlocosDoPdf(elemento);
+
+        // Cada bloco vira uma imagem separada e começa em uma página nova do mesmo PDF
+        let gerador = html2pdf().set({
             margin: [10, 0, 12, 0],
             filename: nomeArquivo,
             image: { type: 'jpeg', quality: 0.95 },
             html2canvas: { scale: 2, backgroundColor: '#ffffff' },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-            pagebreak: { mode: ['css', 'legacy'], avoid: ['.atencao', '.kpis', 'tr', 'li', 'h2', 'h3'] }
-        }).from(elemento).save();
+            pagebreak: { mode: ['css'], avoid: ['.atencao', '.kpis', 'tr', 'li', 'h2', 'h3'] }
+        }).from(blocos[0]).toPdf();
+
+        blocos.slice(1).forEach(bloco => {
+            gerador = gerador.get('pdf').then(pdf => pdf.addPage())
+                .from(bloco).toContainer().toCanvas().toPdf();
+        });
+
+        await gerador.save();
     } catch (erro) {
         console.error('Erro ao gerar o PDF do relatório:', erro);
         Swal.fire('Não foi possível gerar o PDF', 'Tente novamente em alguns instantes.', 'error');
