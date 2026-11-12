@@ -196,9 +196,12 @@ function gerarRelatorioPorRegiao(regiaoFiltro = 'TODAS') {
 
     abrirPreviaRelatorio(`
         <div class="rel-topo">
-            <div class="rel-marca">Visita Virtual · Polos UniFECAF</div>
-            <h1>Relatório de Visitas aos Polos por Região</h1>
-            <div class="rel-sub">Emitido em ${dataEmissao}${filtroRegiaoAtivo ? ` · Região: ${escaparHtml(regiaoFiltro)}` : ''}</div>
+            <div class="rel-topo-texto">
+                <div class="rel-marca">Visita Virtual · Polos UniFECAF</div>
+                <h1>Relatório de Visitas aos Polos por Região</h1>
+                <div class="rel-sub">Emitido em ${dataEmissao}${filtroRegiaoAtivo ? ` · Região: ${escaparHtml(regiaoFiltro)}` : ''}</div>
+            </div>
+            <img src="logo-unifecaf.png.png" alt="Logo UniFECAF" class="rel-logo">
         </div>
 
         <h2>Resumo Geral</h2>

@@ -1544,7 +1544,9 @@ body.previa-aberta { overflow: hidden; }
 
 .relatorio-doc.gerando-pdf { max-width: none; border-radius: 0; box-shadow: none; }
 
-.relatorio-doc .rel-topo { border-bottom: 3px solid #2563eb; padding-bottom: 16px; margin-bottom: 24px; }
+.relatorio-doc .rel-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; border-bottom: 3px solid #2563eb; padding-bottom: 16px; margin-bottom: 24px; }
+.relatorio-doc .rel-topo-texto { flex: 1; min-width: 0; }
+.relatorio-doc .rel-logo { flex-shrink: 0; width: 170px; height: auto; margin-top: -6px; }
 .relatorio-doc .rel-marca { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #2563eb; margin-bottom: 6px; }
 .relatorio-doc h1 { margin: 0; font-size: 1.5rem; color: #1e3a8a; }
 .relatorio-doc .rel-sub { color: #64748b; font-size: 0.85rem; margin-top: 4px; }
@@ -1591,6 +1593,7 @@ body.previa-aberta { overflow: hidden; }
     .relatorio-toolbar-titulo span { display: none; }
     .relatorio-scroll { padding: 12px; }
     .relatorio-doc { padding: 24px 20px; }
+    .relatorio-doc .rel-logo { width: 110px; }
     .relatorio-doc .kpis { grid-template-columns: repeat(2, 1fr); }
     .relatorio-doc .colunas { grid-template-columns: 1fr; }
 }
